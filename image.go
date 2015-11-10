@@ -13,7 +13,7 @@ type Image struct {
 	Url  string
 }
 
-func (i *Image) Download() {
+func (i Image) Download() {
 	resp, err := http.Get(i.Url)
 	defer resp.Body.Close()
 
@@ -35,6 +35,6 @@ func (i *Image) Download() {
 
 }
 
-func (i *Image) toString() string {
-	return path.Base(i.Url)
+func (i Image) String() string {
+	return i.User + "-" + path.Base(i.Url)
 }

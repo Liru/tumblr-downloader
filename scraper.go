@@ -1,12 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
 )
+
+type Post struct {
+	PhotoUrl string `json:"photo-url-1280"`
+}
+
+type Blog struct {
+	Posts []Post `json:"posts"`
+}
 
 func scrape(user string, limiter <-chan time.Time) <-chan Image {
 	imageChannel := make(chan Image)
@@ -14,29 +24,34 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 	go func() {
 		defer close(imageChannel)
 
-		for i := 1; i < 4; i++ {
+		for i := 1; ; i++ {
 			<-limiter
 
-			tumblrUrl := fmt.Sprintf("http://%s.tumblr.com/page/%d", user, i)
+			tumblrUrl := fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user, (i-1)*50)
 			fmt.Println(user, "is on page", i)
 
-			doc, _ := goquery.NewDocument(tumblrUrl)
-			// TODO: Error handling
-			s := strings.Trim(doc.Find("#blog").Text(), " \f\n\r\t")
+			resp, _ := http.Get(tumblrUrl)
 
-			if len(s) == 0 {
-				fmt.Println("blog is empty at", i, "; aborting")
+			defer resp.Body.Close()
+
+			contents, _ := ioutil.ReadAll(resp.Body)
+
+			// This is returned as pure JSON. We need to filter out the variable and the ending semicolon.
+			contents = []byte(strings.Replace(string(contents), "var tumblr_api_read = ", "", 1))
+			contents = []byte(strings.Replace(string(contents), ";", "", -1))
+
+			var blog Blog
+			json.Unmarshal(contents, &blog)
+
+			if len(blog.Posts) == 0 {
 				break
 			}
 
-			// TODO: have scraper go to each post individually, as stuff may be lost otherwise
-
-			doc.Find(".image-link.clearfix").Each(func(i int, s *goquery.Selection) {
-				class, _ := s.Attr("href")
-				// fmt.Println(class)
+			for _, post := range blog.Posts {
+				imageChannel <- Image{User: user, Url: post.PhotoUrl}
 				atomic.AddUint64(&totalFound, 1)
-				imageChannel <- Image{User: user, Url: class}
-			})
+			}
+
 		}
 
 		fmt.Println("Done scraping for", user)
