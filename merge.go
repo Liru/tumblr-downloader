@@ -4,7 +4,7 @@ import "sync"
 
 func merge(done <-chan struct{}, cs []<-chan Image) <-chan Image {
 	var wg sync.WaitGroup
-	out := make(chan Image, 500)
+	out := make(chan Image, 100)
 
 	// Start an output goroutine for each input channel in cs.  output
 	// copies values from c to out until c is closed, then calls wg.Done.
