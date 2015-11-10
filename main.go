@@ -6,65 +6,26 @@ import (
 	"log"
 	"sync"
 	"time"
-	//_ "github.com/PuerkitoBio/goquery"
 )
 
-var totalDownloaded uint64 // Used for atomic operation
-
-func merge(done <-chan struct{}, cs []chan image) <-chan image {
-	var wg sync.WaitGroup
-	out := make(chan image)
-
-	// Start an output goroutine for each input channel in cs.  output
-	// copies values from c to out until c is closed, then calls wg.Done.
-	output := func(c <-chan image) {
-		defer wg.Done()
-		for n := range c {
-			select {
-			case out <- n:
-			case <-done:
-				return
-			}
-		}
-	}
-
-	wg.Add(len(cs))
-	for _, c := range cs {
-		go output(c)
-	}
-
-	// Start a goroutine to close out once all the output goroutines are
-	// done. This must start after the wg.Add call.
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-	return out
-}
-
-func scrape(user string, limiter <-chan time.Time) <-chan image {
-	imagechannel := make(chan image)
-	fmt.Println(user)
-	return imagechannel
-}
+var (
+	totalDownloaded, totalFound, alreadyExists uint64 // Used for atomic operation
+)
 
 func main() {
 
 	var numDownloaders int
-	flag.IntVar(&numDownloaders, "d", 1, "Number of downloader workers to run at once")
+	flag.IntVar(&numDownloaders, "d", 3, "Number of downloader workers to run at once")
 	flag.Parse()
 
 	users := flag.Args()
 
 	if numDownloaders < 1 {
-		log.Println("Invalid number of downloaders, setting to 1	")
-		numDownloaders = 1
+		log.Println("Invalid number of downloaders, setting to default")
+		numDownloaders = 3
 	}
 
 	fmt.Println("Users:", users)
-
-	done := make(chan struct{})
-	defer close(done)
 
 	limiter := make(chan time.Time, 20) // TODO: Investigate whether this is fine
 
@@ -72,28 +33,47 @@ func main() {
 		for t := range time.Tick(time.Millisecond * 500) {
 			select {
 			case limiter <- t:
+				// fmt.Println("tick")
 			default:
 			}
 		} // exits after tick.Stop()
 	}()
 
-	imageChannels := make([]chan image, len(users))
-	images := merge(done, imageChannels)
+	imageChannels := make([]<-chan Image, len(users)) // FIXME: Seems dirty.
 
 	// Set up the scraping process.
-	var scrape_wg sync.WaitGroup
-	scrape_wg.Add(len(users))
 
-	for _, user := range users {
-		go func() {
-			scrape(user, limiter) // TODO: Scrape returns a channel of images. Use merge to combine.
-			scrape_wg.Done()
-		}()
+	for i, user := range users {
+
+		imgChan := scrape(user, limiter) // TODO: Scrape returns a channel of images. Use merge to combine.
+		imageChannels[i] = imgChan
+
 	}
+
+	done := make(chan struct{})
+	defer close(done)
+	images := merge(done, imageChannels)
 
 	// Set up downloaders.
 
+	var downloader_wg sync.WaitGroup
+	downloader_wg.Add(numDownloaders)
+
 	for i := 0; i < numDownloaders; i++ {
-		go downloader(i, limiter, images)
+		go func(j int) {
+			downloader(j, limiter, images) // images will close when scrapers are all done
+			downloader_wg.Done()
+		}(i)
 	}
+
+	fmt.Println("Waiting...")
+
+	downloader_wg.Wait()
+
+	fmt.Println("Downloading complete.")
+	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
+	if alreadyExists != 0 {
+		fmt.Println(alreadyExists, "previously downloaded.")
+	}
+
 }
