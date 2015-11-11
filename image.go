@@ -18,10 +18,12 @@ func (i Image) Download() {
 	defer resp.Body.Close()
 
 	if err != nil {
+		log.Fatal(err)
 	}
 
 	pic, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Fatal(err)
 	}
 
 	file := "downloads/" + i.User + "/" + path.Base(i.Url)

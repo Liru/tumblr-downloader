@@ -12,6 +12,7 @@ import (
 
 type Post struct {
 	PhotoUrl string `json:"photo-url-1280"`
+	Photos   []Post `json:"photos"`
 }
 
 type Blog struct {
@@ -48,8 +49,15 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 			}
 
 			for _, post := range blog.Posts {
-				imageChannel <- Image{User: user, Url: post.PhotoUrl}
-				atomic.AddUint64(&totalFound, 1)
+				if len(post.Photos) == 0 {
+					imageChannel <- Image{User: user, Url: post.PhotoUrl}
+					atomic.AddUint64(&totalFound, 1)
+				} else {
+					for _, photo := range post.Photos { // FIXME: This is messy.
+						imageChannel <- Image{User: user, Url: photo.PhotoUrl}
+						atomic.AddUint64(&totalFound, 1)
+					}
+				}
 			}
 
 		}
