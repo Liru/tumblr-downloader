@@ -9,13 +9,19 @@ import (
 )
 
 var (
-	totalDownloaded, totalFound, alreadyExists, totalErrors uint64 // Used for atomic operation
+	totalDownloaded, totalFound uint64
+	alreadyExists, totalErrors  uint64 // Used for atomic operation
+
+	numDownloaders, requestRate int // used for flags
 )
+
+func init() {
+	flag.IntVar(&numDownloaders, "d", 3, "Number of downloader workers to run at once")
+	flag.IntVar(&requestRate, "r", 2, "Maximum number of requests to make per second")
+}
 
 func main() {
 
-	var numDownloaders int
-	flag.IntVar(&numDownloaders, "d", 3, "Number of downloader workers to run at once")
 	flag.Parse()
 
 	users := flag.Args()
@@ -25,18 +31,15 @@ func main() {
 		numDownloaders = 3
 	}
 
-	fmt.Println("Users:", users)
-
 	limiter := make(chan time.Time, 20) // TODO: Investigate whether this is fine
 
 	go func() {
-		for t := range time.Tick(time.Millisecond * 500) {
+		for t := range time.Tick(time.Second / time.Duration(requestRate)) {
 			select {
 			case limiter <- t:
-				// fmt.Println("tick")
 			default:
 			}
-		} // exits after tick.Stop()
+		}
 	}()
 
 	imageChannels := make([]<-chan Image, len(users)) // FIXME: Seems dirty.
@@ -78,5 +81,4 @@ func main() {
 	if totalErrors != 0 {
 		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
 	}
-
 }
