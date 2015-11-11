@@ -15,11 +15,13 @@ type Image struct {
 
 func (i Image) Download() {
 	resp, err := http.Get(i.Url)
-	defer resp.Body.Close()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		atomic.AddUint64(&totalErrors, 1)
+		return
 	}
+	defer resp.Body.Close()
 
 	pic, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -38,5 +40,5 @@ func (i Image) Download() {
 }
 
 func (i Image) String() string {
-	return i.User + "-" + path.Base(i.Url)
+	return i.User + " - " + path.Base(i.Url)
 }

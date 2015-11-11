@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	totalDownloaded, totalFound, alreadyExists uint64 // Used for atomic operation
+	totalDownloaded, totalFound, alreadyExists, totalErrors uint64 // Used for atomic operation
 )
 
 func main() {
@@ -74,6 +74,9 @@ func main() {
 	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
 	if alreadyExists != 0 {
 		fmt.Println(alreadyExists, "previously downloaded.")
+	}
+	if totalErrors != 0 {
+		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
 	}
 
 }
