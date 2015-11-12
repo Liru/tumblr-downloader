@@ -10,16 +10,16 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 
 ## Download
 
-Latest releases can be found [here](/releases/download).
+Latest releases can be found [here](https://github.com/Liru/tumblr-downloader/releases/latest).
 
 ###Windows
-[64 bit](/releases/download/v1.0.0/tumblr-downloader-windows.zip)
+[64 bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.0.0/tumblr-downloader-windows.zip)
 
 ###Mac
-[64 bit](/releases/download/v1.0.0/tumblr-downloader-mac.zip)
+[64 bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.0.0/tumblr-downloader-mac.zip)
 
 ###Linux
-[64bit](/releases/download/v1.0.0/tumblr-downloader-linux.zip)
+[64bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.0.0/tumblr-downloader-linux.zip)
 
 ## Usage
 ###Simple
