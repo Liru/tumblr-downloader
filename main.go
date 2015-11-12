@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,11 +23,42 @@ func init() {
 	flag.IntVar(&requestRate, "r", 2, "Maximum number of requests to make per second")
 }
 
+func readFile() ([]string, error) {
+	path := "download.txt"
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		text := strings.Trim(scanner.Text(), " \n\r\t")
+		lines = append(lines, text)
+	}
+	return lines, scanner.Err()
+}
+
 func main() {
 
 	flag.Parse()
 
 	users := flag.Args()
+
+	fileResults, err := readFile()
+
+	if (err != nil) && len(users) == 0 {
+		fmt.Fprintln(os.Stderr, "No download.txt detected. Create one and add the blogs you want to download.")
+		os.Exit(1)
+	}
+
+	users = append(users, fileResults...)
+
+	if len(users) == 0 {
+		fmt.Fprintln(os.Stderr, "No users detected.")
+		os.Exit(1)
+	}
 
 	if numDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
