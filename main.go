@@ -15,12 +15,15 @@ var (
 	totalDownloaded, totalFound uint64
 	alreadyExists, totalErrors  uint64 // Used for atomic operation
 
-	numDownloaders, requestRate int // used for flags
+	numDownloaders int
+	requestRate    int
+	updateMode     bool
 )
 
 func init() {
 	flag.IntVar(&numDownloaders, "d", 3, "Number of downloader workers to run at once")
 	flag.IntVar(&requestRate, "r", 2, "Maximum number of requests to make per second")
+	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered")
 }
 
 func readFile() ([]string, error) {

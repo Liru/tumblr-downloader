@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,12 +52,48 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 
 			for _, post := range blog.Posts {
 				if len(post.Photos) == 0 {
-					imageChannel <- Image{User: user, Url: post.PhotoUrl}
+
+					i := Image{User: user, Url: post.PhotoUrl}
+
+					filename := path.Base(i.Url)
+					pathname := fmt.Sprintf("downloads/%s/%s", user, filename)
+
+					// If there is a file that exists, we skip adding it and move on to the next one.
+					// Or, if update mode is enabled, then we can simply stop searching.
+					_, err := os.Stat(pathname)
+					if err == nil {
+						if updateMode {
+							return
+						} else {
+							atomic.AddUint64(&alreadyExists, 1)
+							continue
+						}
+					}
+
 					atomic.AddUint64(&totalFound, 1)
+					imageChannel <- i
+
 				} else {
 					for _, photo := range post.Photos { // FIXME: This is messy.
-						imageChannel <- Image{User: user, Url: photo.PhotoUrl}
+
+						i := Image{User: user, Url: photo.PhotoUrl}
+
+						filename := path.Base(i.Url)
+						pathname := fmt.Sprintf("downloads/%s/%s", user, filename)
+
+						// If there is a file that exists, we skip adding it and move on to the next one.
+						// Or, if update mode is enabled, then we can simply stop searching.
+						_, err := os.Stat(pathname)
+						if err == nil {
+							if updateMode {
+								return
+							} else {
+								atomic.AddUint64(&alreadyExists, 1)
+								continue
+							}
+						}
 						atomic.AddUint64(&totalFound, 1)
+						imageChannel <- i
 					}
 				}
 			}
