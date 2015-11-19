@@ -12,11 +12,16 @@ import (
 	"time"
 )
 
+// A Post is reflective of the JSON used in the tumblr API.
+// It contains a PhotoURL, and, optionally, an array of photos.
+// If Photos isn't empty, it typically contains at least one URL which matches PhotoURL.
 type Post struct {
-	PhotoUrl string `json:"photo-url-1280"`
-	Photos   []Post `json:"photos"`
+	PhotoURL string `json:"photo-url-1280"`
+	Photos   []Post `json:"photos,omitempty"`
 }
 
+// A Blog is the outer container for Posts. It is necessary for easier JSON deserialization,
+// even though it's useless in and of itself.
 type Blog struct {
 	Posts []Post `json:"posts"`
 }
@@ -30,10 +35,10 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 		for i := 1; ; i++ {
 			<-limiter
 
-			tumblrUrl := fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user, (i-1)*50)
+			tumblrURL := fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user, (i-1)*50)
 			fmt.Println(user, "is on page", i)
 
-			resp, _ := http.Get(tumblrUrl)
+			resp, _ := http.Get(tumblrURL)
 
 			defer resp.Body.Close()
 
@@ -53,9 +58,9 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 			for _, post := range blog.Posts {
 				if len(post.Photos) == 0 {
 
-					i := Image{User: user, Url: post.PhotoUrl}
+					i := Image{User: user, URL: post.PhotoURL}
 
-					filename := path.Base(i.Url)
+					filename := path.Base(i.URL)
 					pathname := fmt.Sprintf("downloads/%s/%s", user, filename)
 
 					// If there is a file that exists, we skip adding it and move on to the next one.
@@ -64,10 +69,10 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 					if err == nil {
 						if updateMode {
 							return
-						} else {
-							atomic.AddUint64(&alreadyExists, 1)
-							continue
 						}
+						atomic.AddUint64(&alreadyExists, 1)
+						continue
+
 					}
 
 					atomic.AddUint64(&totalFound, 1)
@@ -76,9 +81,9 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 				} else {
 					for _, photo := range post.Photos { // FIXME: This is messy.
 
-						i := Image{User: user, Url: photo.PhotoUrl}
+						i := Image{User: user, URL: photo.PhotoURL}
 
-						filename := path.Base(i.Url)
+						filename := path.Base(i.URL)
 						pathname := fmt.Sprintf("downloads/%s/%s", user, filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
@@ -87,10 +92,10 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 						if err == nil {
 							if updateMode {
 								return
-							} else {
-								atomic.AddUint64(&alreadyExists, 1)
-								continue
 							}
+							atomic.AddUint64(&alreadyExists, 1)
+							continue
+
 						}
 						atomic.AddUint64(&totalFound, 1)
 						imageChannel <- i
