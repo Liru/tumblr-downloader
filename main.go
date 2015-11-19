@@ -96,19 +96,19 @@ func main() {
 
 	// Set up downloaders.
 
-	var downloader_wg sync.WaitGroup
-	downloader_wg.Add(numDownloaders)
+	var downloaderWg sync.WaitGroup
+	downloaderWg.Add(numDownloaders)
 
 	for i := 0; i < numDownloaders; i++ {
 		go func(j int) {
 			downloader(j, limiter, images) // images will close when scrapers are all done
-			downloader_wg.Done()
+			downloaderWg.Done()
 		}(i)
 	}
 
 	fmt.Println("Waiting...")
 
-	downloader_wg.Wait()
+	downloaderWg.Wait()
 
 	fmt.Println("Downloading complete.")
 	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")

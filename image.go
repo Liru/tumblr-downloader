@@ -8,13 +8,15 @@ import (
 	"sync/atomic"
 )
 
+// An Image contains information on a particular image URL, as well as the user where the URL was found.
 type Image struct {
 	User string
-	Url  string
+	URL  string
 }
 
+// Download downloads an image specified in an Image's URL.
 func (i Image) Download() {
-	resp, err := http.Get(i.Url)
+	resp, err := http.Get(i.URL)
 
 	if err != nil {
 		log.Println(err)
@@ -28,7 +30,7 @@ func (i Image) Download() {
 		log.Fatal(err)
 	}
 
-	file := "downloads/" + i.User + "/" + path.Base(i.Url)
+	file := "downloads/" + i.User + "/" + path.Base(i.URL)
 
 	err = ioutil.WriteFile(file, pic, 0644)
 	if err != nil {
@@ -39,6 +41,7 @@ func (i Image) Download() {
 
 }
 
+// Standard String method for the Stringer interface.
 func (i Image) String() string {
-	return i.User + " - " + path.Base(i.Url)
+	return i.User + " - " + path.Base(i.URL)
 }
