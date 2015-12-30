@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -37,9 +38,12 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 
 			tumblrURL := fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user, (i-1)*50)
 			fmt.Println(user, "is on page", i)
-
-			resp, _ := http.Get(tumblrURL)
-
+			resp, err := http.Get(tumblrURL)
+			if err != nil {
+				i--
+				log.Println(user, err)
+				continue
+			}
 			defer resp.Body.Close()
 
 			contents, _ := ioutil.ReadAll(resp.Body)
