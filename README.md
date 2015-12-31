@@ -13,13 +13,13 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 Latest releases can be found [here](https://github.com/Liru/tumblr-downloader/releases/latest).
 
 ###Windows
-[64 bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.0.0/tumblr-downloader-windows.zip)
+[64 bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.1.0/tumblr-downloader-windows.zip)
 
 ###Mac
-[64 bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.0.0/tumblr-downloader-mac.zip)
+[64 bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.1.0/tumblr-downloader-mac.zip)
 
 ###Linux
-[64bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.0.0/tumblr-downloader-linux.zip)
+[64bit](https://github.com/Liru/tumblr-downloader/releases/download/v1.1.0/tumblr-downloader-linux.zip)
 
 ## Usage
 ###Simple
@@ -31,6 +31,15 @@ chickenpictures
 ```
 
 Run `tumblr-downloader` once it's complete.  It'll download all the pictures from the blog and save it in a `downloads/<username>` folder for each user.
+
+You can also download a single tag for a blog, if you only want specific content. For example, you can have the following:
+```
+nature-pics forests
+sunsets
+chickenpictures funny faces
+```
+
+If your tag has spaces in it, just type the tag normally after the blog name. For instance, in the above example, `chickenpictures` will download anything tagged with `funny faces`. (Note that it will NOT download `funny` and `faces` separately like this.)
 
 ### Command line
 
