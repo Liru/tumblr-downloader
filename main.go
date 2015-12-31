@@ -20,13 +20,24 @@ var (
 	updateMode     bool
 )
 
+type blog struct {
+	name, tag string
+}
+
+func (b blog) String() string {
+	if b.tag == "" {
+		return b.name
+	}
+	return b.name + " | " + b.tag
+}
+
 func init() {
-	flag.IntVar(&numDownloaders, "d", 3, "Number of downloader workers to run at once")
+	flag.IntVar(&numDownloaders, "d", 3, "Number of downloaders to run at once")
 	flag.IntVar(&requestRate, "r", 2, "Maximum number of requests to make per second")
 	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered")
 }
 
-func readFile() ([]string, error) {
+func readFile() ([]blog, error) {
 	path := "download.txt"
 	file, err := os.Open(path)
 	if err != nil {
@@ -34,13 +45,24 @@ func readFile() ([]string, error) {
 	}
 	defer file.Close()
 
-	var lines []string
+	var blogs []blog
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		text := strings.Trim(scanner.Text(), " \n\r\t")
-		lines = append(lines, text)
+		split := strings.SplitN(text, " ", 2)
+
+		b := blog{
+			name: split[0],
+		}
+
+		if len(split) > 1 {
+			b.tag = split[1]
+		}
+
+		blogs = append(blogs, b)
 	}
-	return lines, scanner.Err()
+	fmt.Println(blogs)
+	return blogs, scanner.Err()
 }
 
 func main() {
@@ -55,10 +77,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, "No download.txt detected. Create one and add the blogs you want to download.")
 		os.Exit(1)
 	}
+	userBlogs := make([]blog, len(users))
+	for _, user := range users {
+		userBlogs = append(userBlogs, blog{name: user})
+	}
 
-	users = append(users, fileResults...)
+	userBlogs = append(userBlogs, fileResults...)
 
-	if len(users) == 0 {
+	if len(userBlogs) == 0 {
 		fmt.Fprintln(os.Stderr, "No users detected.")
 		os.Exit(1)
 	}
@@ -79,11 +105,11 @@ func main() {
 		}
 	}()
 
-	imageChannels := make([]<-chan Image, len(users)) // FIXME: Seems dirty.
+	imageChannels := make([]<-chan Image, len(userBlogs)) // FIXME: Seems dirty.
 
 	// Set up the scraping process.
 
-	for i, user := range users {
+	for i, user := range userBlogs {
 
 		imgChan := scrape(user, limiter) // TODO: Scrape returns a channel of images. Use merge to combine.
 		imageChannels[i] = imgChan

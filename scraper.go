@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -27,7 +28,7 @@ type Blog struct {
 	Posts []Post `json:"posts"`
 }
 
-func scrape(user string, limiter <-chan time.Time) <-chan Image {
+func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 	imageChannel := make(chan Image)
 	fmt.Println(user)
 	go func() {
@@ -36,9 +37,16 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 		for i := 1; ; i++ {
 			<-limiter
 
-			tumblrURL := fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user, (i-1)*50)
-			fmt.Println(user, "is on page", i)
+			var tumblrURL string
+			if user.tag == "" {
+				tumblrURL = fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user.name, (i-1)*50)
+			} else {
+				tumblrURL = fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo&tagged=%s", user.name, (i-1)*50, url.QueryEscape(user.tag))
+			}
+			fmt.Println(user.name, "is on page", i)
 			resp, err := http.Get(tumblrURL)
+
+			// XXX: Ugly as shit. This could probably be done better.
 			if err != nil {
 				i--
 				log.Println(user, err)
@@ -62,10 +70,10 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 			for _, post := range blog.Posts {
 				if len(post.Photos) == 0 {
 
-					i := Image{User: user, URL: post.PhotoURL}
+					i := Image{User: user.name, URL: post.PhotoURL}
 
 					filename := path.Base(i.URL)
-					pathname := fmt.Sprintf("downloads/%s/%s", user, filename)
+					pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
 
 					// If there is a file that exists, we skip adding it and move on to the next one.
 					// Or, if update mode is enabled, then we can simply stop searching.
@@ -85,10 +93,10 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 				} else {
 					for _, photo := range post.Photos { // FIXME: This is messy.
 
-						i := Image{User: user, URL: photo.PhotoURL}
+						i := Image{User: user.name, URL: photo.PhotoURL}
 
 						filename := path.Base(i.URL)
-						pathname := fmt.Sprintf("downloads/%s/%s", user, filename)
+						pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
 						// Or, if update mode is enabled, then we can simply stop searching.
@@ -109,7 +117,7 @@ func scrape(user string, limiter <-chan time.Time) <-chan Image {
 
 		}
 
-		fmt.Println("Done scraping for", user)
+		fmt.Println("Done scraping for", user.name)
 
 	}()
 	return imageChannel
