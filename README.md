@@ -51,6 +51,7 @@ Run `tumblr-downloader` as such, appending the usernames you want to download af
 
 * `-d` - The maximum number of images to download at the same time. Default is 3.
 * `-r` - The maximum number of requests per second to make.
+* `-u` - Update mode -- the downloader will automatically stop once it reaches files that it has already downloaded.
 
 ## Contributing
 
