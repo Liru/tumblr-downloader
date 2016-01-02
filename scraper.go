@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,8 +19,9 @@ import (
 // It contains a PhotoURL, and, optionally, an array of photos.
 // If Photos isn't empty, it typically contains at least one URL which matches PhotoURL.
 type Post struct {
-	PhotoURL string `json:"photo-url-1280"`
-	Photos   []Post `json:"photos,omitempty"`
+	PhotoURL      string `json:"photo-url-1280"`
+	Photos        []Post `json:"photos,omitempty"`
+	UnixTimestamp int64  `json:"unix-timestamp"`
 }
 
 // A Blog is the outer container for Posts. It is necessary for easier JSON deserialization,
@@ -37,14 +39,28 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 		for i := 1; ; i++ {
 			<-limiter
 
-			var tumblrURL string
-			if user.tag == "" {
-				tumblrURL = fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo", user.name, (i-1)*50)
-			} else {
-				tumblrURL = fmt.Sprintf("http://%s.tumblr.com/api/read/json?start=%d&num=50&type=photo&tagged=%s", user.name, (i-1)*50, url.QueryEscape(user.tag))
+			base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", user.name)
+
+			tumblrURL, err := url.Parse(base)
+			if err != nil {
+				log.Fatal(err)
 			}
+
+			vals := url.Values{}
+			vals.Set("num", "50")
+			vals.Add("start", strconv.Itoa((i-1)*50))
+			vals.Add("type", "photo")
+
+			if user.tag != "" {
+				vals.Add("tagged", user.tag)
+			}
+
+			tumblrURL.RawQuery = vals.Encode()
+
+			// fmt.Println(tumblrURL)
+
 			fmt.Println(user.name, "is on page", i)
-			resp, err := http.Get(tumblrURL)
+			resp, err := http.Get(tumblrURL.String())
 
 			// XXX: Ugly as shit. This could probably be done better.
 			if err != nil {
@@ -56,7 +72,7 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 
 			contents, _ := ioutil.ReadAll(resp.Body)
 
-			// This is returned as pure JSON. We need to filter out the variable and the ending semicolon.
+			// This is returned as pure javascript. We need to filter out the variable and the ending semicolon.
 			contents = []byte(strings.Replace(string(contents), "var tumblr_api_read = ", "", 1))
 			contents = []byte(strings.Replace(string(contents), ";", "", -1))
 
@@ -70,7 +86,11 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 			for _, post := range blog.Posts {
 				if len(post.Photos) == 0 {
 
-					i := Image{User: user.name, URL: post.PhotoURL}
+					i := Image{
+						User:          user.name,
+						URL:           post.PhotoURL,
+						UnixTimestamp: post.UnixTimestamp,
+					}
 
 					filename := path.Base(i.URL)
 					pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
@@ -93,7 +113,11 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 				} else {
 					for _, photo := range post.Photos { // FIXME: This is messy.
 
-						i := Image{User: user.name, URL: photo.PhotoURL}
+						i := Image{
+							User:          user.name,
+							URL:           photo.PhotoURL,
+							UnixTimestamp: post.UnixTimestamp, // Note that this is post and not photo.
+						}
 
 						filename := path.Base(i.URL)
 						pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
