@@ -51,5 +51,6 @@ func (i Image) Download() {
 
 // Standard String method for the Stringer interface.
 func (i Image) String() string {
-	return i.User + " - " + path.Base(i.URL)
+	date := time.Unix(i.UnixTimestamp, 0)
+	return i.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(i.URL)
 }
