@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -19,9 +20,16 @@ import (
 // It contains a PhotoURL, and, optionally, an array of photos.
 // If Photos isn't empty, it typically contains at least one URL which matches PhotoURL.
 type Post struct {
+	Type          string
 	PhotoURL      string `json:"photo-url-1280"`
 	Photos        []Post `json:"photos,omitempty"`
 	UnixTimestamp int64  `json:"unix-timestamp"`
+
+	// for regular posts
+	RegularBody string `json:"regular-body"`
+
+	// for answer posts
+	Answer string
 }
 
 // A Blog is the outer container for Posts. It is necessary for easier JSON deserialization,
@@ -29,6 +37,8 @@ type Post struct {
 type Blog struct {
 	Posts []Post `json:"posts"`
 }
+
+var inlineSearch = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
 
 func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 	imageChannel := make(chan Image)
@@ -49,7 +59,7 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 			vals := url.Values{}
 			vals.Set("num", "50")
 			vals.Add("start", strconv.Itoa((i-1)*50))
-			vals.Add("type", "photo")
+			// vals.Add("type", "photo")
 
 			if user.tag != "" {
 				vals.Add("tagged", user.tag)
@@ -84,11 +94,33 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 			}
 
 			for _, post := range blog.Posts {
-				if len(post.Photos) == 0 {
 
+				var URLs []string
+
+				switch post.Type {
+				case "photo":
+					if len(post.Photos) == 0 {
+						URLs = append(URLs, post.PhotoURL)
+					} else {
+						for _, photo := range post.Photos {
+							URLs = append(URLs, photo.PhotoURL)
+						}
+					}
+
+				case "answer":
+					URLs = inlineSearch.FindAllString(post.Answer, -1)
+				case "regular":
+					URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+				default:
+					continue
+				}
+
+				// fmt.Println(URLs)
+
+				for _, URL := range URLs {
 					i := Image{
 						User:          user.name,
-						URL:           post.PhotoURL,
+						URL:           URL,
 						UnixTimestamp: post.UnixTimestamp,
 					}
 
@@ -109,34 +141,8 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 
 					atomic.AddUint64(&totalFound, 1)
 					imageChannel <- i
-
-				} else {
-					for _, photo := range post.Photos { // FIXME: This is messy.
-
-						i := Image{
-							User:          user.name,
-							URL:           photo.PhotoURL,
-							UnixTimestamp: post.UnixTimestamp, // Note that this is post and not photo.
-						}
-
-						filename := path.Base(i.URL)
-						pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
-
-						// If there is a file that exists, we skip adding it and move on to the next one.
-						// Or, if update mode is enabled, then we can simply stop searching.
-						_, err := os.Stat(pathname)
-						if err == nil {
-							if updateMode {
-								return
-							}
-							atomic.AddUint64(&alreadyExists, 1)
-							continue
-
-						}
-						atomic.AddUint64(&totalFound, 1)
-						imageChannel <- i
-					}
 				}
+
 			}
 
 		}
