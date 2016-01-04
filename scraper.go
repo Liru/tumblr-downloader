@@ -30,6 +30,9 @@ type Post struct {
 
 	// for answer posts
 	Answer string
+
+	// for videos
+	Video string `json:"video-player"`
 }
 
 // A Blog is the outer container for Posts. It is necessary for easier JSON deserialization,
@@ -38,7 +41,13 @@ type Blog struct {
 	Posts []Post `json:"posts"`
 }
 
-var inlineSearch = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
+var (
+	inlineSearch   = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
+	videoSearch    = regexp.MustCompile(`"hdUrl":"(.*\/tumblr_\w+)"`)                                           // fuck it
+	altVideoSearch = regexp.MustCompile(`source src="(.*)" type`)
+)
+
+// `\n<video  id='embed-568af048eb003889902731' class='crt-video crt-skin-default' width='400' height='225' poster='http://media.tumblr.com/tumblr_nzrij8lMwd1slstjg_frame1.jpg' preload='none' data-crt-video data-crt-options='{\"autoheight\":null,\"duration\":80,\"hdUrl\":\"http:\\/\\/honourcall.tumblr.com\\/video_file\\/136626115139\\/tumblr_nzrij8lMwd1slstjg\",\"filmstrip\":{\"url\":\"http:\\/\\/38.media.tumblr.com\\/previews\\/tumblr_nzrij8lMwd1slstjg_filmstrip.jpg\",\"width\":\"200\",\"height\":\"112\"}}' >\n    <source src=\"http://honourcall.tumblr.com/video_file/136626115139/tumblr_nzrij8lMwd1slstjg/480\" type=\"video/mp4\">\n</video>\n`
 
 func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 	imageChannel := make(chan Image)
@@ -111,6 +120,24 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 					URLs = inlineSearch.FindAllString(post.Answer, -1)
 				case "regular":
 					URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+				case "video":
+					regextest := videoSearch.FindStringSubmatch(post.Video)
+					if regextest == nil { // hdUrl is false. We have to get the other URL.
+						regextest = altVideoSearch.FindStringSubmatch(post.Video)
+					}
+
+					// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
+					// In that case, ignore it and move on. Not my problem.
+					if regextest == nil {
+						continue
+					}
+					videoURL := strings.Replace(regextest[1], `\`, ``, -1)
+
+					// If there are problems with downloading video, the below part may be the cause.
+					videoURL = strings.Replace(videoURL, `/480`, ``, -1)
+					videoURL += ".mp4"
+
+					URLs = append(URLs, videoURL)
 				default:
 					continue
 				}
