@@ -19,12 +19,14 @@ type Image struct {
 
 // Download downloads an image specified in an Image's URL.
 func (i Image) Download() {
-	resp, err := http.Get(i.URL)
-
-	if err != nil {
-		log.Println(err)
-		atomic.AddUint64(&totalErrors, 1)
-		return
+	var resp *http.Response
+	for {
+		resp, err := http.Get(i.URL)
+		if err != nil {
+			log.Println(err)
+		} else {
+			break
+		}
 	}
 	defer resp.Body.Close()
 
