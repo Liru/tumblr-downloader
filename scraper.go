@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -44,14 +45,16 @@ type Blog struct {
 var (
 	inlineSearch   = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
 	videoSearch    = regexp.MustCompile(`"hdUrl":"(.*\/tumblr_\w+)"`)                                           // fuck it
-	altVideoSearch = regexp.MustCompile(`source src="(.*)" type`)
+	altVideoSearch = regexp.MustCompile(`source src="(.*)\/\d+" type`)
 )
 
 // `\n<video  id='embed-568af048eb003889902731' class='crt-video crt-skin-default' width='400' height='225' poster='http://media.tumblr.com/tumblr_nzrij8lMwd1slstjg_frame1.jpg' preload='none' data-crt-video data-crt-options='{\"autoheight\":null,\"duration\":80,\"hdUrl\":\"http:\\/\\/honourcall.tumblr.com\\/video_file\\/136626115139\\/tumblr_nzrij8lMwd1slstjg\",\"filmstrip\":{\"url\":\"http:\\/\\/38.media.tumblr.com\\/previews\\/tumblr_nzrij8lMwd1slstjg_filmstrip.jpg\",\"width\":\"200\",\"height\":\"112\"}}' >\n    <source src=\"http://honourcall.tumblr.com/video_file/136626115139/tumblr_nzrij8lMwd1slstjg/480\" type=\"video/mp4\">\n</video>\n`
 
 func scrape(user blog, limiter <-chan time.Time) <-chan Image {
+	var wg sync.WaitGroup
 	imageChannel := make(chan Image)
 	fmt.Println(user)
+
 	go func() {
 		defer close(imageChannel)
 
@@ -102,80 +105,87 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 				break
 			}
 
-			for _, post := range blog.Posts {
+			wg.Add(1)
+			go func() {
+				for _, post := range blog.Posts {
 
-				var URLs []string
+					var URLs []string
 
-				switch post.Type {
-				case "photo":
-					if len(post.Photos) == 0 {
-						URLs = append(URLs, post.PhotoURL)
-					} else {
-						for _, photo := range post.Photos {
-							URLs = append(URLs, photo.PhotoURL)
+					switch post.Type {
+					case "photo":
+						if len(post.Photos) == 0 {
+							URLs = append(URLs, post.PhotoURL)
+						} else {
+							for _, photo := range post.Photos {
+								URLs = append(URLs, photo.PhotoURL)
+							}
 						}
-					}
 
-				case "answer":
-					URLs = inlineSearch.FindAllString(post.Answer, -1)
-				case "regular":
-					URLs = inlineSearch.FindAllString(post.RegularBody, -1)
-				case "video":
-					regextest := videoSearch.FindStringSubmatch(post.Video)
-					if regextest == nil { // hdUrl is false. We have to get the other URL.
-						regextest = altVideoSearch.FindStringSubmatch(post.Video)
-					}
+					case "answer":
+						URLs = inlineSearch.FindAllString(post.Answer, -1)
+					case "regular":
+						URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+					case "video":
+						regextest := videoSearch.FindStringSubmatch(post.Video)
+						if regextest == nil { // hdUrl is false. We have to get the other URL.
+							regextest = altVideoSearch.FindStringSubmatch(post.Video)
+						}
 
-					// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
-					// In that case, ignore it and move on. Not my problem.
-					if regextest == nil {
+						// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
+						// In that case, ignore it and move on. Not my problem.
+						if regextest == nil {
+							continue
+						}
+						videoURL := strings.Replace(regextest[1], `\`, ``, -1)
+
+						// If there are problems with downloading video, the below part may be the cause.
+						// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
+						videoURL += ".mp4"
+
+						URLs = append(URLs, videoURL)
+					default:
 						continue
 					}
-					videoURL := strings.Replace(regextest[1], `\`, ``, -1)
 
-					// If there are problems with downloading video, the below part may be the cause.
-					videoURL = strings.Replace(videoURL, `/480`, ``, -1)
-					videoURL += ".mp4"
+					// fmt.Println(URLs)
 
-					URLs = append(URLs, videoURL)
-				default:
-					continue
-				}
-
-				// fmt.Println(URLs)
-
-				for _, URL := range URLs {
-					i := Image{
-						User:          user.name,
-						URL:           URL,
-						UnixTimestamp: post.UnixTimestamp,
-					}
-
-					filename := path.Base(i.URL)
-					pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
-
-					// If there is a file that exists, we skip adding it and move on to the next one.
-					// Or, if update mode is enabled, then we can simply stop searching.
-					_, err := os.Stat(pathname)
-					if err == nil {
-						if updateMode {
-							return
+					for _, URL := range URLs {
+						i := Image{
+							User:          user.name,
+							URL:           URL,
+							UnixTimestamp: post.UnixTimestamp,
 						}
-						atomic.AddUint64(&alreadyExists, 1)
-						continue
 
+						filename := path.Base(i.URL)
+						pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
+
+						// If there is a file that exists, we skip adding it and move on to the next one.
+						// Or, if update mode is enabled, then we can simply stop searching.
+						_, err := os.Stat(pathname)
+						if err == nil {
+							if updateMode {
+								return
+							}
+							atomic.AddUint64(&alreadyExists, 1)
+							continue
+
+						}
+
+						atomic.AddUint64(&totalFound, 1)
+						imageChannel <- i
 					}
 
-					atomic.AddUint64(&totalFound, 1)
-					imageChannel <- i
 				}
-
-			}
+				wg.Done()
+			}()
 
 		}
 
 		fmt.Println("Done scraping for", user.name)
 
+		// This is needed because otherwise, the defer call closes a channel early, and
+		// the program panics.
+		wg.Wait()
 	}()
 	return imageChannel
 }
