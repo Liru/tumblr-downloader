@@ -21,6 +21,7 @@ import (
 // It contains a PhotoURL, and, optionally, an array of photos.
 // If Photos isn't empty, it typically contains at least one URL which matches PhotoURL.
 type Post struct {
+	ID            string
 	Type          string
 	PhotoURL      string `json:"photo-url-1280"`
 	Photos        []Post `json:"photos,omitempty"`
@@ -48,18 +49,36 @@ var (
 	altVideoSearch = regexp.MustCompile(`source src="(.*)\/\d+" type`)
 )
 
-// `\n<video  id='embed-568af048eb003889902731' class='crt-video crt-skin-default' width='400' height='225' poster='http://media.tumblr.com/tumblr_nzrij8lMwd1slstjg_frame1.jpg' preload='none' data-crt-video data-crt-options='{\"autoheight\":null,\"duration\":80,\"hdUrl\":\"http:\\/\\/honourcall.tumblr.com\\/video_file\\/136626115139\\/tumblr_nzrij8lMwd1slstjg\",\"filmstrip\":{\"url\":\"http:\\/\\/38.media.tumblr.com\\/previews\\/tumblr_nzrij8lMwd1slstjg_filmstrip.jpg\",\"width\":\"200\",\"height\":\"112\"}}' >\n    <source src=\"http://honourcall.tumblr.com/video_file/136626115139/tumblr_nzrij8lMwd1slstjg/480\" type=\"video/mp4\">\n</video>\n`
-
-func scrape(user blog, limiter <-chan time.Time) <-chan Image {
+func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
+	highestID := "0"
+	var IDMutex sync.Mutex
+
+	var once sync.Once
 	imageChannel := make(chan Image)
-	fmt.Println(user)
 
 	go func() {
+
+		done := make(chan struct{})
+		closeDone := func() { close(done) }
+
+		defer updateDatabase(user.name, &highestID)
 		defer close(imageChannel)
+		defer wg.Wait()
+		defer fmt.Println("Done scraping for", user.name)
 
 		for i := 1; ; i++ {
-			<-limiter
+			select {
+			case <-done:
+				return
+			default:
+				select {
+				case <-done:
+					return
+				case <-limiter:
+					// We get a value from limiter, and proceed to scrape a page.
+				}
+			}
 
 			base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", user.name)
 
@@ -78,8 +97,6 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 			}
 
 			tumblrURL.RawQuery = vals.Encode()
-
-			// fmt.Println(tumblrURL)
 
 			fmt.Println(user.name, "is on page", i)
 			resp, err := http.Get(tumblrURL.String())
@@ -106,8 +123,27 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 			}
 
 			wg.Add(1)
+
 			go func() {
+				defer wg.Done()
+				lastPostIDint, err := strconv.Atoi(user.lastPostID)
+				if err != nil {
+					log.Fatal("parse1", err)
+				}
 				for _, post := range blog.Posts {
+					postIDint, _ := strconv.Atoi(post.ID)
+					highestIDint, _ := strconv.Atoi(highestID)
+
+					IDMutex.Lock()
+					if postIDint >= highestIDint {
+						highestID = post.ID
+					}
+					IDMutex.Unlock()
+
+					if (postIDint <= lastPostIDint) && updateMode {
+						once.Do(closeDone)
+						break
+					}
 
 					var URLs []string
 
@@ -163,9 +199,6 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 						// Or, if update mode is enabled, then we can simply stop searching.
 						_, err := os.Stat(pathname)
 						if err == nil {
-							if updateMode {
-								return
-							}
 							atomic.AddUint64(&alreadyExists, 1)
 							continue
 
@@ -176,16 +209,11 @@ func scrape(user blog, limiter <-chan time.Time) <-chan Image {
 					}
 
 				}
-				wg.Done()
+
 			}()
 
 		}
 
-		fmt.Println("Done scraping for", user.name)
-
-		// This is needed because otherwise, the defer call closes a channel early, and
-		// the program panics.
-		wg.Wait()
 	}()
 	return imageChannel
 }

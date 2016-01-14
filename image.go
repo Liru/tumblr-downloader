@@ -21,10 +21,11 @@ type Image struct {
 func (i Image) Download() {
 	var resp *http.Response
 	for {
-		resp, err := http.Get(i.URL)
+		resp2, err := http.Get(i.URL)
 		if err != nil {
 			log.Println(err)
 		} else {
+			resp = resp2
 			break
 		}
 	}

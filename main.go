@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/boltdb/bolt"
 	"log"
 	"os"
 	"strings"
@@ -18,17 +19,13 @@ var (
 	numDownloaders int
 	requestRate    int
 	updateMode     bool
+
+	database *bolt.DB
 )
 
 type blog struct {
-	name, tag string
-}
-
-func (b blog) String() string {
-	if b.tag == "" {
-		return b.name
-	}
-	return b.name + " | " + b.tag
+	name, tag  string
+	lastPostID string
 }
 
 func init() {
@@ -37,7 +34,7 @@ func init() {
 	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered")
 }
 
-func readFile() ([]blog, error) {
+func readUserFile() ([]*blog, error) {
 	path := "download.txt"
 	file, err := os.Open(path)
 	if err != nil {
@@ -45,14 +42,15 @@ func readFile() ([]blog, error) {
 	}
 	defer file.Close()
 
-	var blogs []blog
+	var blogs []*blog
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		text := strings.Trim(scanner.Text(), " \n\r\t")
 		split := strings.SplitN(text, " ", 2)
 
-		b := blog{
-			name: split[0],
+		b := &blog{
+			name:       split[0],
+			lastPostID: "0",
 		}
 
 		if len(split) > 1 {
@@ -61,7 +59,7 @@ func readFile() ([]blog, error) {
 
 		blogs = append(blogs, b)
 	}
-	fmt.Println(blogs)
+	// fmt.Println(blogs)
 	return blogs, scanner.Err()
 }
 
@@ -71,15 +69,15 @@ func main() {
 
 	users := flag.Args()
 
-	fileResults, err := readFile()
+	fileResults, err := readUserFile()
 
 	if (err != nil) && len(users) == 0 {
 		fmt.Fprintln(os.Stderr, "No download.txt detected. Create one and add the blogs you want to download.")
 		os.Exit(1)
 	}
-	userBlogs := make([]blog, len(users))
+	userBlogs := make([]*blog, len(users))
 	for _, user := range users {
-		userBlogs = append(userBlogs, blog{name: user})
+		userBlogs = append(userBlogs, &blog{name: user, lastPostID: "0"})
 	}
 
 	userBlogs = append(userBlogs, fileResults...)
@@ -94,7 +92,35 @@ func main() {
 		numDownloaders = 3
 	}
 
-	limiter := make(chan time.Time, 20) // TODO: Investigate whether this is fine
+	limiter := make(chan time.Time, 10*requestRate)
+
+	db, err := bolt.Open("tumblr-update.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	database = db
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte("tumblr"))
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+
+		for _, blog := range userBlogs {
+			v := b.Get([]byte(blog.name))
+			if len(v) != 0 {
+				blog.lastPostID = string(v) // TODO: Messy, probably.
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	go func() {
 		for t := range time.Tick(time.Second / time.Duration(requestRate)) {
@@ -110,10 +136,8 @@ func main() {
 	// Set up the scraping process.
 
 	for i, user := range userBlogs {
-
-		imgChan := scrape(user, limiter) // TODO: Scrape returns a channel of images. Use merge to combine.
+		imgChan := scrape(user, limiter)
 		imageChannels[i] = imgChan
-
 	}
 
 	done := make(chan struct{})
@@ -131,8 +155,6 @@ func main() {
 			downloaderWg.Done()
 		}(i)
 	}
-
-	fmt.Println("Waiting...")
 
 	downloaderWg.Wait()
 
