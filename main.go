@@ -30,8 +30,8 @@ type blog struct {
 }
 
 func init() {
-	flag.IntVar(&numDownloaders, "d", 3, "Number of downloaders to run at once")
-	flag.IntVar(&requestRate, "r", 2, "Maximum number of requests to make per second")
+	flag.IntVar(&numDownloaders, "d", 10, "Number of downloaders to run at once")
+	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests to make per second")
 	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered")
 }
 
@@ -90,7 +90,7 @@ func main() {
 
 	if numDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
-		numDownloaders = 3
+		numDownloaders = 10
 	}
 
 	limiter := make(chan time.Time, 10*requestRate)
