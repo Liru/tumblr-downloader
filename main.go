@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/boltdb/bolt"
 )
 
 var (

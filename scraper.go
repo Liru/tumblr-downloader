@@ -26,6 +26,7 @@ type Post struct {
 	PhotoURL      string `json:"photo-url-1280"`
 	Photos        []Post `json:"photos,omitempty"`
 	UnixTimestamp int64  `json:"unix-timestamp"`
+	PhotoCaption  string `json:"photo-caption"`
 
 	// for regular posts
 	RegularBody string `json:"regular-body"`
@@ -34,7 +35,8 @@ type Post struct {
 	Answer string
 
 	// for videos
-	Video string `json:"video-player"`
+	Video        string `json:"video-player"`
+	VideoCaption string `json:"video-caption"` // For links to outside sites.
 }
 
 // A Blog is the outer container for Posts. It is necessary for easier JSON deserialization,
@@ -47,7 +49,10 @@ var (
 	inlineSearch   = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
 	videoSearch    = regexp.MustCompile(`"hdUrl":"(.*\/tumblr_\w+)"`)                                           // fuck it
 	altVideoSearch = regexp.MustCompile(`source src="(.*)\/\d+" type`)
+	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
+
+// a href=\"http://www.gfycat.com/AcademicEveryBlackbear\"
 
 func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
@@ -147,13 +152,20 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 					var URLs []string
 
-					switch post.Type {
+					switch post.Type { // TODO: Refactor and clean this up. This is messy and has repeated code.
 					case "photo":
 						if len(post.Photos) == 0 {
 							URLs = append(URLs, post.PhotoURL)
 						} else {
 							for _, photo := range post.Photos {
 								URLs = append(URLs, photo.PhotoURL)
+							}
+						}
+
+						regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
+						if regexResult != nil {
+							for _, v := range regexResult[1:] {
+								URLs = append(URLs, GetGfycatURL(v))
 							}
 						}
 
@@ -179,6 +191,15 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						videoURL += ".mp4"
 
 						URLs = append(URLs, videoURL)
+
+						// Here, we get the GfyCat urls from the post.
+						regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
+						if regextest != nil {
+							for _, v := range regextest[1:] {
+								URLs = append(URLs, GetGfycatURL(v))
+							}
+						}
+
 					default:
 						continue
 					}

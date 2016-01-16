@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -8,6 +10,10 @@ import (
 	"path"
 	"sync/atomic"
 	"time"
+)
+
+var (
+	gfyRequest = "https://gfycat.com/cajax/get/%s"
 )
 
 // An Image contains information on a particular image URL, as well as the user where the URL was found.
@@ -56,4 +62,40 @@ func (i Image) Download() {
 func (i Image) String() string {
 	date := time.Unix(i.UnixTimestamp, 0)
 	return i.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(i.URL)
+}
+
+// Gfy houses the Gfycat response.
+type Gfy struct {
+	GfyItem struct {
+		Mp4Url  string `json:"mp4Url"`
+		WebmURL string `json:"webmUrl"`
+	} `json:"gfyItem"`
+}
+
+// GetGfycatURL gets the appropriate Gfycat URL for download, from a "normal" link.
+func GetGfycatURL(slug string) string {
+	gfyURL := fmt.Sprintf(gfyRequest, slug)
+
+	var resp *http.Response
+	for {
+		resp2, err := http.Get(gfyURL)
+		if err != nil {
+			log.Println(err)
+		} else {
+			resp = resp2
+			break
+		}
+	}
+	defer resp.Body.Close()
+
+	gfyData, _ := ioutil.ReadAll(resp.Body)
+
+	var gfy Gfy
+
+	err := json.Unmarshal(gfyData, &gfy)
+	if err != nil {
+		log.Println(err)
+	}
+
+	return gfy.GfyItem.Mp4Url
 }
