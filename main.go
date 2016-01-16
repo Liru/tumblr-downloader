@@ -21,6 +21,10 @@ var (
 	requestRate    int
 	updateMode     bool
 
+	ignorePhotos bool
+	ignoreVideos bool
+	ignoreAudio  bool
+
 	database *bolt.DB
 )
 
@@ -30,9 +34,13 @@ type blog struct {
 }
 
 func init() {
-	flag.IntVar(&numDownloaders, "d", 10, "Number of downloaders to run at once")
-	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests to make per second")
-	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered")
+	flag.IntVar(&numDownloaders, "d", 10, "Number of downloaders to run at once.")
+	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests per second to make.")
+	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered.")
+
+	flag.BoolVar(&ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
+	flag.BoolVar(&ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
+	flag.BoolVar(&ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
 }
 
 func readUserFile() ([]*blog, error) {
@@ -92,6 +100,8 @@ func main() {
 		log.Println("Invalid number of downloaders, setting to default")
 		numDownloaders = 10
 	}
+
+	// Here, we're done parsing flags.
 
 	limiter := make(chan time.Time, 10*requestRate)
 

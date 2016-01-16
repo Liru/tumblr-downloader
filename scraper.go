@@ -154,49 +154,59 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 					switch post.Type { // TODO: Refactor and clean this up. This is messy and has repeated code.
 					case "photo":
-						if len(post.Photos) == 0 {
-							URLs = append(URLs, post.PhotoURL)
-						} else {
-							for _, photo := range post.Photos {
-								URLs = append(URLs, photo.PhotoURL)
+						if !ignorePhotos {
+							if len(post.Photos) == 0 {
+								URLs = append(URLs, post.PhotoURL)
+							} else {
+								for _, photo := range post.Photos {
+									URLs = append(URLs, photo.PhotoURL)
+								}
 							}
 						}
 
-						regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
-						if regexResult != nil {
-							for _, v := range regexResult[1:] {
-								URLs = append(URLs, GetGfycatURL(v))
+						if !ignoreVideos {
+							regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
+							if regexResult != nil {
+								for _, v := range regexResult[1:] {
+									URLs = append(URLs, GetGfycatURL(v))
+								}
 							}
 						}
 
 					case "answer":
-						URLs = inlineSearch.FindAllString(post.Answer, -1)
+						if !ignorePhotos {
+							URLs = inlineSearch.FindAllString(post.Answer, -1)
+						}
 					case "regular":
-						URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+						if !ignorePhotos {
+							URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+						}
 					case "video":
-						regextest := videoSearch.FindStringSubmatch(post.Video)
-						if regextest == nil { // hdUrl is false. We have to get the other URL.
-							regextest = altVideoSearch.FindStringSubmatch(post.Video)
-						}
+						if !ignoreVideos {
+							regextest := videoSearch.FindStringSubmatch(post.Video)
+							if regextest == nil { // hdUrl is false. We have to get the other URL.
+								regextest = altVideoSearch.FindStringSubmatch(post.Video)
+							}
 
-						// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
-						// In that case, ignore it and move on. Not my problem.
-						if regextest == nil {
-							continue
-						}
-						videoURL := strings.Replace(regextest[1], `\`, ``, -1)
+							// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
+							// In that case, ignore it and move on. Not my problem.
+							if regextest == nil {
+								continue
+							}
+							videoURL := strings.Replace(regextest[1], `\`, ``, -1)
 
-						// If there are problems with downloading video, the below part may be the cause.
-						// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
-						videoURL += ".mp4"
+							// If there are problems with downloading video, the below part may be the cause.
+							// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
+							videoURL += ".mp4"
 
-						URLs = append(URLs, videoURL)
+							URLs = append(URLs, videoURL)
 
-						// Here, we get the GfyCat urls from the post.
-						regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
-						if regextest != nil {
-							for _, v := range regextest[1:] {
-								URLs = append(URLs, GetGfycatURL(v))
+							// Here, we get the GfyCat urls from the post.
+							regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
+							if regextest != nil {
+								for _, v := range regextest[1:] {
+									URLs = append(URLs, GetGfycatURL(v))
+								}
 							}
 						}
 
