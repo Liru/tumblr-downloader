@@ -43,7 +43,6 @@ func (i Image) Download() {
 	}
 
 	file := i.User + "/" + path.Base(i.URL)
-
 	err = ioutil.WriteFile(file, pic, 0644)
 	if err != nil {
 		log.Fatal(err)

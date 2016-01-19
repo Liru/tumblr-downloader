@@ -137,9 +137,9 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 				}
 				for _, post := range blog.Posts {
 					postIDint, _ := strconv.Atoi(post.ID)
-					highestIDint, _ := strconv.Atoi(highestID)
 
 					IDMutex.Lock()
+					highestIDint, _ := strconv.Atoi(highestID)
 					if postIDint >= highestIDint {
 						highestID = post.ID
 					}
@@ -224,7 +224,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						}
 
 						filename := path.Base(i.URL)
-						pathname := fmt.Sprintf("downloads/%s/%s", user.name, filename)
+						pathname := fmt.Sprintf("%s/%s", user.name, filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
 						// Or, if update mode is enabled, then we can simply stop searching.
