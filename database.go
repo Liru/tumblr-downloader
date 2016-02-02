@@ -24,7 +24,7 @@ func updateDatabase(name string, id *string) {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("database: ", err)
 	}
 
 }

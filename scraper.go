@@ -89,7 +89,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 			tumblrURL, err := url.Parse(base)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal("tumblrURL: ", err)
 			}
 
 			vals := url.Values{}
