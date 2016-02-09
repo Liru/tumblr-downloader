@@ -1,5 +1,7 @@
 # tumblr-downloader
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/liru/tumblr-downloader)](https://goreportcard.com/report/github.com/liru/tumblr-downloader)
+
 A tumblr scraper, designed to download all the images from the blogs that you want.
 
 ##Features
