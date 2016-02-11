@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cheggaaa/pb"
 )
 
 var (
@@ -21,16 +22,19 @@ var (
 	requestRate    int
 	updateMode     bool
 
-	ignorePhotos bool
-	ignoreVideos bool
-	ignoreAudio  bool
+	ignorePhotos   bool
+	ignoreVideos   bool
+	ignoreAudio    bool
+	useProgressBar bool
 
 	database *bolt.DB
+	pBar     = pb.New(0)
 )
 
 type blog struct {
-	name, tag  string
-	lastPostID string
+	name, tag   string
+	lastPostID  string
+	progressBar *pb.ProgressBar
 }
 
 func init() {
@@ -41,6 +45,15 @@ func init() {
 	flag.BoolVar(&ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
 	flag.BoolVar(&ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
 	flag.BoolVar(&ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
+	flag.BoolVar(&useProgressBar, "p", false, "Use a progress bar to show download status.")
+}
+
+func newBlog(name string) *blog {
+	return &blog{
+		name:        name,
+		lastPostID:  "0",
+		progressBar: pBar,
+	}
 }
 
 func readUserFile() ([]*blog, error) {
@@ -57,10 +70,7 @@ func readUserFile() ([]*blog, error) {
 		text := strings.Trim(scanner.Text(), " \n\r\t")
 		split := strings.SplitN(text, " ", 2)
 
-		b := &blog{
-			name:       split[0],
-			lastPostID: "0",
-		}
+		b := newBlog(split[0])
 
 		if len(split) > 1 {
 			b.tag = split[1]
@@ -86,7 +96,7 @@ func main() {
 	}
 	userBlogs := make([]*blog, len(users))
 	for _, user := range users {
-		userBlogs = append(userBlogs, &blog{name: user, lastPostID: "0"})
+		userBlogs = append(userBlogs, newBlog(user))
 	}
 
 	userBlogs = append(userBlogs, fileResults...)
@@ -151,9 +161,13 @@ func main() {
 		imageChannels[i] = imgChan
 	}
 
+	pBar.Start()
+
 	done := make(chan struct{})
 	defer close(done)
 	images := merge(done, imageChannels)
+
+	// Set up progress bars.
 
 	// Set up downloaders.
 
@@ -167,7 +181,7 @@ func main() {
 		}(i)
 	}
 
-	downloaderWg.Wait()
+	downloaderWg.Wait() // Waits for all downloads to complete.
 
 	fmt.Println("Downloading complete.")
 	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
@@ -176,5 +190,14 @@ func main() {
 	}
 	if totalErrors != 0 {
 		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
+	}
+}
+
+func Update(s ...interface{}) {
+	if useProgressBar {
+
+		pBar.Update()
+	} else {
+		fmt.Println(s...)
 	}
 }

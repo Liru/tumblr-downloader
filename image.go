@@ -10,6 +10,8 @@ import (
 	"path"
 	"sync/atomic"
 	"time"
+
+	"github.com/cheggaaa/pb"
 )
 
 var (
@@ -21,6 +23,7 @@ type Image struct {
 	User          string
 	URL           string
 	UnixTimestamp int64
+	ProgressBar   *pb.ProgressBar
 }
 
 // Download downloads an image specified in an Image's URL.
@@ -53,6 +56,7 @@ func (i Image) Download() {
 		log.Println(err)
 	}
 
+	i.ProgressBar.Increment()
 	atomic.AddUint64(&totalDownloaded, 1)
 
 }

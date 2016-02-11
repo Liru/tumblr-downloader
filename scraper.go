@@ -52,27 +52,25 @@ var (
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
-// a href=\"http://www.gfycat.com/AcademicEveryBlackbear\"
-
 func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
 	highestID := "0"
 	var IDMutex sync.Mutex
 
 	var once sync.Once
-	imageChannel := make(chan Image)
+	imageChannel := make(chan Image, 1000)
 
 	go func() {
 
 		done := make(chan struct{})
 		closeDone := func() { close(done) }
+		var i int
 
 		defer updateDatabase(user.name, &highestID)
 		defer close(imageChannel)
 		defer wg.Wait()
-		defer fmt.Println("Done scraping for", user.name)
-
-		for i := 1; ; i++ {
+		defer fmt.Println("Done scraping for", user.name, "(", i, "pages )")
+		for i = 1; ; i++ {
 			select {
 			case <-done:
 				return
@@ -103,7 +101,8 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 			tumblrURL.RawQuery = vals.Encode()
 
-			fmt.Println(user.name, "is on page", i)
+			// fmt.Println(user.name, "is on page", i)
+			Update(user.name, "is on page", i)
 			resp, err := http.Get(tumblrURL.String())
 
 			// XXX: Ugly as shit. This could probably be done better.
@@ -212,7 +211,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 					default:
 						continue
-					}
+					} // Done switch statement
 
 					// fmt.Println(URLs)
 
@@ -221,7 +220,10 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 							User:          user.name,
 							URL:           URL,
 							UnixTimestamp: post.UnixTimestamp,
+							ProgressBar:   user.progressBar,
 						}
+
+						atomic.AddInt64(&user.progressBar.Total, 1)
 
 						filename := path.Base(i.URL)
 						pathname := fmt.Sprintf("%s/%s", user.name, filename)
@@ -231,20 +233,20 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						_, err := os.Stat(pathname)
 						if err == nil {
 							atomic.AddUint64(&alreadyExists, 1)
+							user.progressBar.Increment()
 							continue
-
 						}
 
 						atomic.AddUint64(&totalFound, 1)
 						imageChannel <- i
-					}
+					} // Done adding URLs from a single post
 
-				}
+				} // Done searching all posts on a page
 
-			}()
+			}() // Function that asynchronously adds all URLs to download queue
 
-		}
+		} // loop that searches blog, page by page
 
-	}()
+	}() // Function that asynchronously adds all downloadables from a blog to a queue
 	return imageChannel
 }
