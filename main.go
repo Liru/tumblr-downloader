@@ -84,10 +84,7 @@ func readUserFile() ([]*blog, error) {
 	return blogs, scanner.Err()
 }
 
-func main() {
-
-	flag.Parse()
-
+func getBlogsToDownload() []*blog {
 	users := flag.Args()
 
 	fileResults, err := readUserFile()
@@ -107,20 +104,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if numDownloaders < 1 {
-		log.Println("Invalid number of downloaders, setting to default")
-		numDownloaders = 10
-	}
+	return userBlogs
+}
 
-	// Here, we're done parsing flags.
-
-	limiter := make(chan time.Time, 10*requestRate)
-
+func setupDatabase(userBlogs []*blog) {
 	db, err := bolt.Open("tumblr-update.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 
 	database = db
 
@@ -141,8 +132,26 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatal("main: ", err)
+		log.Fatal("database: ", err)
 	}
+}
+
+func main() {
+
+	flag.Parse()
+	defer database.Close()
+
+	userBlogs := getBlogsToDownload()
+	setupDatabase(userBlogs)
+
+	if numDownloaders < 1 {
+		log.Println("Invalid number of downloaders, setting to default")
+		numDownloaders = 10
+	}
+
+	// Here, we're done parsing flags.
+
+	limiter := make(chan time.Time, 10*requestRate)
 
 	go func() {
 		for t := range time.Tick(time.Second / time.Duration(requestRate)) {
@@ -162,13 +171,15 @@ func main() {
 		imageChannels[i] = imgChan
 	}
 
-	pBar.Start()
-
 	done := make(chan struct{})
 	defer close(done)
 	images := merge(done, imageChannels)
 
 	// Set up progress bars.
+
+	if useProgressBar {
+		pBar.Start()
+	}
 
 	// Set up downloaders.
 
@@ -185,13 +196,7 @@ func main() {
 	downloaderWg.Wait() // Waits for all downloads to complete.
 
 	fmt.Println("Downloading complete.")
-	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
-	if alreadyExists != 0 {
-		fmt.Println(alreadyExists, "previously downloaded.")
-	}
-	if totalErrors != 0 {
-		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
-	}
+	printSummary()
 }
 
 func Update(s ...interface{}) {
@@ -200,5 +205,15 @@ func Update(s ...interface{}) {
 		pBar.Update()
 	} else {
 		fmt.Println(s...)
+	}
+}
+
+func printSummary() {
+	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
+	if alreadyExists != 0 {
+		fmt.Println(alreadyExists, "previously downloaded.")
+	}
+	if totalErrors != 0 {
+		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
 	}
 }
