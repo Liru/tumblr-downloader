@@ -186,7 +186,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 			tumblrURL := makeTumblrURL(user, i)
 
 			// fmt.Println(user.name, "is on page", i)
-			Update(user.name, "is on page", i)
+			showProgress(user.name, "is on page", i)
 			resp, err := http.Get(tumblrURL.String())
 
 			// XXX: Ugly as shit. This could probably be done better.

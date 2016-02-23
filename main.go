@@ -199,7 +199,7 @@ func main() {
 	printSummary()
 }
 
-func Update(s ...interface{}) {
+func showProgress(s ...interface{}) {
 	if useProgressBar {
 
 		pBar.Update()

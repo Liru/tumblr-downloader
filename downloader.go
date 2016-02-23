@@ -16,7 +16,7 @@ func downloader(id int, limiter <-chan time.Time, imgChan <-chan Image) {
 		}
 
 		<-limiter
-		Update(img)
+		showProgress(img)
 		img.Download()
 
 	}
