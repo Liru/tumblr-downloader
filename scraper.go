@@ -120,7 +120,10 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 			contents = []byte(strings.Replace(string(contents), ";", "", -1))
 
 			var blog Blog
-			json.Unmarshal(contents, &blog)
+			err = json.Unmarshal(contents, &blog)
+			if err != nil {
+				log.Println(err)
+			}
 
 			if len(blog.Posts) == 0 {
 				break
@@ -226,7 +229,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						atomic.AddInt64(&user.progressBar.Total, 1)
 
 						filename := path.Base(i.URL)
-						pathname := fmt.Sprintf("%s/%s", user.name, filename)
+						pathname := path.Join(downloadDirectory, user.name, filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
 						// Or, if update mode is enabled, then we can simply stop searching.

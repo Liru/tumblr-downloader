@@ -18,9 +18,10 @@ var (
 	totalDownloaded, totalFound uint64
 	alreadyExists, totalErrors  uint64 // Used for atomic operation
 
-	numDownloaders int
-	requestRate    int
-	updateMode     bool
+	numDownloaders    int
+	requestRate       int
+	updateMode        bool
+	downloadDirectory string
 
 	ignorePhotos   bool
 	ignoreVideos   bool
@@ -46,6 +47,7 @@ func init() {
 	flag.BoolVar(&ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
 	flag.BoolVar(&ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
 	flag.BoolVar(&useProgressBar, "p", false, "Use a progress bar to show download status.")
+	flag.StringVar(&downloadDirectory, "dir", "", "The directory where the files are saved.")
 }
 
 func newBlog(name string) *blog {
@@ -89,11 +91,10 @@ func main() {
 	users := flag.Args()
 
 	fileResults, err := readUserFile()
-
-	if (err != nil) && len(users) == 0 {
-		fmt.Fprintln(os.Stderr, "No download.txt detected. Create one and add the blogs you want to download.")
-		os.Exit(1)
+	if err != nil {
+		log.Fatal(err)
 	}
+
 	userBlogs := make([]*blog, len(users))
 	for _, user := range users {
 		userBlogs = append(userBlogs, newBlog(user))
@@ -124,8 +125,8 @@ func main() {
 	database = db
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("tumblr"))
-		if err != nil {
+		b, boltErr := tx.CreateBucketIfNotExists([]byte("tumblr"))
+		if boltErr != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 
