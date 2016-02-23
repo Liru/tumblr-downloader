@@ -52,6 +52,114 @@ var (
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
+func downloadTypeWrapper(b bool, fn func()) {
+	if b {
+		fn()
+	}
+}
+
+func parseDataForFiles(post Post) (URLs []string) {
+	switch post.Type { // TODO: Refactor and clean this up. This is messy and has repeated code.
+	case "photo":
+
+		downloadTypeWrapper(!ignorePhotos, func() {
+			if len(post.Photos) == 0 {
+				URLs = append(URLs, post.PhotoURL)
+			} else {
+				for _, photo := range post.Photos {
+					URLs = append(URLs, photo.PhotoURL)
+				}
+			}
+		})
+
+		downloadTypeWrapper(!ignoreVideos, func() {
+			regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
+			if regexResult != nil {
+				for _, v := range regexResult[1:] {
+					URLs = append(URLs, GetGfycatURL(v))
+				}
+			}
+		})
+
+	case "answer":
+		downloadTypeWrapper(!ignorePhotos, func() {
+			URLs = inlineSearch.FindAllString(post.Answer, -1)
+		})
+
+	case "regular":
+		downloadTypeWrapper(!ignorePhotos, func() {
+			URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+		})
+	case "video":
+		downloadTypeWrapper(!ignoreVideos, func() {
+			regextest := videoSearch.FindStringSubmatch(post.Video)
+			if regextest == nil { // hdUrl is false. We have to get the other URL.
+				regextest = altVideoSearch.FindStringSubmatch(post.Video)
+			}
+
+			// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
+			// In that case, ignore it and move on. Not my problem.
+			if regextest == nil {
+				return
+			}
+			videoURL := strings.Replace(regextest[1], `\`, ``, -1)
+
+			// If there are problems with downloading video, the below part may be the cause.
+			// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
+			videoURL += ".mp4"
+
+			URLs = append(URLs, videoURL)
+
+			// Here, we get the GfyCat urls from the post.
+			regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
+			if regextest != nil {
+				for _, v := range regextest[1:] {
+					URLs = append(URLs, GetGfycatURL(v))
+				}
+			}
+		})
+
+	default:
+		return
+	} // Done switch statement
+	return URLs
+}
+
+func makeTumblrURL(user *blog, i int) *url.URL {
+
+	base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", user.name)
+
+	tumblrURL, err := url.Parse(base)
+	checkFatalError(err, "tumblrURL: ")
+
+	vals := url.Values{}
+	vals.Set("num", "50")
+	vals.Add("start", strconv.Itoa((i-1)*50))
+	// vals.Add("type", "photo")
+
+	if user.tag != "" {
+		vals.Add("tagged", user.tag)
+	}
+
+	tumblrURL.RawQuery = vals.Encode()
+	return tumblrURL
+}
+
+func shouldFinishScraping(lim <-chan time.Time, done <-chan struct{}) bool {
+	select {
+	case <-done:
+		return true
+	default:
+		select {
+		case <-done:
+			return true
+		case <-lim:
+			// We get a value from limiter, and proceed to scrape a page.
+			return false
+		}
+	}
+}
+
 func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
 	highestID := "0"
@@ -71,35 +179,11 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 		defer wg.Wait()
 		defer fmt.Println("Done scraping for", user.name, "(", i, "pages )")
 		for i = 1; ; i++ {
-			select {
-			case <-done:
+			if shouldFinishScraping(limiter, done) {
 				return
-			default:
-				select {
-				case <-done:
-					return
-				case <-limiter:
-					// We get a value from limiter, and proceed to scrape a page.
-				}
 			}
 
-			base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", user.name)
-
-			tumblrURL, err := url.Parse(base)
-			if err != nil {
-				log.Fatal("tumblrURL: ", err)
-			}
-
-			vals := url.Values{}
-			vals.Set("num", "50")
-			vals.Add("start", strconv.Itoa((i-1)*50))
-			// vals.Add("type", "photo")
-
-			if user.tag != "" {
-				vals.Add("tagged", user.tag)
-			}
-
-			tumblrURL.RawQuery = vals.Encode()
+			tumblrURL := makeTumblrURL(user, i)
 
 			// fmt.Println(user.name, "is on page", i)
 			Update(user.name, "is on page", i)
@@ -121,9 +205,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 			var blog Blog
 			err = json.Unmarshal(contents, &blog)
-			if err != nil {
-				log.Println(err)
-			}
+			checkError(err)
 
 			if len(blog.Posts) == 0 {
 				break
@@ -134,9 +216,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 			go func() {
 				defer wg.Done()
 				lastPostIDint, err := strconv.Atoi(user.lastPostID)
-				if err != nil {
-					log.Fatal("parse1", err)
-				}
+				checkFatalError(err)
 				for _, post := range blog.Posts {
 					postIDint, _ := strconv.Atoi(post.ID)
 
@@ -152,69 +232,11 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						break
 					}
 
-					var URLs []string
+					URLs := parseDataForFiles(post)
 
-					switch post.Type { // TODO: Refactor and clean this up. This is messy and has repeated code.
-					case "photo":
-						if !ignorePhotos {
-							if len(post.Photos) == 0 {
-								URLs = append(URLs, post.PhotoURL)
-							} else {
-								for _, photo := range post.Photos {
-									URLs = append(URLs, photo.PhotoURL)
-								}
-							}
-						}
-
-						if !ignoreVideos {
-							regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
-							if regexResult != nil {
-								for _, v := range regexResult[1:] {
-									URLs = append(URLs, GetGfycatURL(v))
-								}
-							}
-						}
-
-					case "answer":
-						if !ignorePhotos {
-							URLs = inlineSearch.FindAllString(post.Answer, -1)
-						}
-					case "regular":
-						if !ignorePhotos {
-							URLs = inlineSearch.FindAllString(post.RegularBody, -1)
-						}
-					case "video":
-						if !ignoreVideos {
-							regextest := videoSearch.FindStringSubmatch(post.Video)
-							if regextest == nil { // hdUrl is false. We have to get the other URL.
-								regextest = altVideoSearch.FindStringSubmatch(post.Video)
-							}
-
-							// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
-							// In that case, ignore it and move on. Not my problem.
-							if regextest == nil {
-								continue
-							}
-							videoURL := strings.Replace(regextest[1], `\`, ``, -1)
-
-							// If there are problems with downloading video, the below part may be the cause.
-							// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
-							videoURL += ".mp4"
-
-							URLs = append(URLs, videoURL)
-
-							// Here, we get the GfyCat urls from the post.
-							regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
-							if regextest != nil {
-								for _, v := range regextest[1:] {
-									URLs = append(URLs, GetGfycatURL(v))
-								}
-							}
-						}
-
-					default:
+					if len(URLs) == 0 {
 						continue
-					} // Done switch statement
+					}
 
 					// fmt.Println(URLs)
 

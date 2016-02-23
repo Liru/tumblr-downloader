@@ -217,3 +217,15 @@ func printSummary() {
 		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
 	}
 }
+
+func checkError(err error, args ...interface{}) {
+	if err != nil {
+		log.Println(args, err)
+	}
+}
+
+func checkFatalError(err error, args ...interface{}) {
+	if err != nil {
+		log.Fatal(args, err)
+	}
+}
