@@ -248,8 +248,6 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 							ProgressBar:   user.progressBar,
 						}
 
-						atomic.AddInt64(&user.progressBar.Total, 1)
-
 						filename := path.Base(i.URL)
 						pathname := path.Join(downloadDirectory, user.name, filename)
 
@@ -258,10 +256,11 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						_, err := os.Stat(pathname)
 						if err == nil {
 							atomic.AddUint64(&alreadyExists, 1)
-							user.progressBar.Increment()
+							// user.progressBar.Increment()
 							continue
 						}
 
+						atomic.AddInt64(&user.progressBar.Total, 1)
 						atomic.AddUint64(&totalFound, 1)
 						imageChannel <- i
 					} // Done adding URLs from a single post

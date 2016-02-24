@@ -201,7 +201,6 @@ func main() {
 
 func showProgress(s ...interface{}) {
 	if useProgressBar {
-
 		pBar.Update()
 	} else {
 		fmt.Println(s...)
