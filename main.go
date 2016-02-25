@@ -139,10 +139,10 @@ func setupDatabase(userBlogs []*blog) {
 func main() {
 
 	flag.Parse()
-	defer database.Close()
 
 	userBlogs := getBlogsToDownload()
 	setupDatabase(userBlogs)
+	defer database.Close()
 
 	if numDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
@@ -219,12 +219,20 @@ func printSummary() {
 
 func checkError(err error, args ...interface{}) {
 	if err != nil {
-		log.Println(args, err)
+		if len(args) != 0 {
+			log.Println(args, err)
+		} else {
+			log.Println(err)
+		}
 	}
 }
 
 func checkFatalError(err error, args ...interface{}) {
 	if err != nil {
-		log.Fatal(args, err)
+		if len(args) != 0 {
+			log.Fatal(args, err)
+		} else {
+			log.Fatal(err)
+		}
 	}
 }

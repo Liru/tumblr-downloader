@@ -42,14 +42,14 @@ func (i Image) Download() {
 
 	pic, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("ReadAll:", err)
 	}
 
 	file := path.Join(downloadDirectory, i.User, path.Base(i.URL))
 
 	err = ioutil.WriteFile(file, pic, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("WriteFile:", err)
 	}
 
 	err = os.Chtimes(file, time.Now(), time.Unix(i.UnixTimestamp, 0))
@@ -84,7 +84,7 @@ func GetGfycatURL(slug string) string {
 	for {
 		resp2, err := http.Get(gfyURL)
 		if err != nil {
-			log.Println(err)
+			log.Println("GetGfycatURL: ", err)
 		} else {
 			resp = resp2
 			break
@@ -98,7 +98,7 @@ func GetGfycatURL(slug string) string {
 
 	err := json.Unmarshal(gfyData, &gfy)
 	if err != nil {
-		log.Println(err)
+		log.Println("GfycatUnmarshal: ", err)
 	}
 
 	return gfy.GfyItem.Mp4Url

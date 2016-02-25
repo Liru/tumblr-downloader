@@ -174,10 +174,16 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 		closeDone := func() { close(done) }
 		var i int
 
-		defer updateDatabase(user.name, &highestID)
-		defer close(imageChannel)
-		defer wg.Wait()
-		defer fmt.Println("Done scraping for", user.name, "(", i, "pages )")
+		// We need to put all of the following into a function because
+		// Go evaluates params at defer instead of at execution.
+		// That, and it beats writing `defer` multiple times.
+		defer func() {
+			fmt.Println("Done scraping for", user.name, "(", i-1, "pages )")
+			wg.Wait()
+			close(imageChannel)
+			updateDatabase(user.name, &highestID)
+		}()
+
 		for i = 1; ; i++ {
 			if shouldFinishScraping(limiter, done) {
 				return
@@ -205,7 +211,9 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 			var blog Blog
 			err = json.Unmarshal(contents, &blog)
-			checkError(err)
+			if err != nil {
+
+			}
 
 			if len(blog.Posts) == 0 {
 				break
@@ -261,6 +269,9 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						}
 
 						atomic.AddInt64(&user.progressBar.Total, 1)
+						if useProgressBar {
+							user.progressBar.Update()
+						}
 						atomic.AddUint64(&totalFound, 1)
 						imageChannel <- i
 					} // Done adding URLs from a single post
