@@ -52,17 +52,11 @@ var (
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
-func downloadTypeWrapper(b bool, fn func()) {
-	if b {
-		fn()
-	}
-}
-
 func parseDataForFiles(post Post) (URLs []string) {
 	switch post.Type { // TODO: Refactor and clean this up. This is messy and has repeated code.
 	case "photo":
 
-		downloadTypeWrapper(!ignorePhotos, func() {
+		if !ignorePhotos {
 			if len(post.Photos) == 0 {
 				URLs = append(URLs, post.PhotoURL)
 			} else {
@@ -70,28 +64,29 @@ func parseDataForFiles(post Post) (URLs []string) {
 					URLs = append(URLs, photo.PhotoURL)
 				}
 			}
-		})
+		}
 
-		downloadTypeWrapper(!ignoreVideos, func() {
+		if !ignoreVideos {
 			regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
 			if regexResult != nil {
 				for _, v := range regexResult[1:] {
 					URLs = append(URLs, GetGfycatURL(v))
 				}
 			}
-		})
+		}
 
 	case "answer":
-		downloadTypeWrapper(!ignorePhotos, func() {
+		if !ignorePhotos {
 			URLs = inlineSearch.FindAllString(post.Answer, -1)
-		})
+		}
 
 	case "regular":
-		downloadTypeWrapper(!ignorePhotos, func() {
+		if !ignorePhotos {
 			URLs = inlineSearch.FindAllString(post.RegularBody, -1)
-		})
+		}
+
 	case "video":
-		downloadTypeWrapper(!ignoreVideos, func() {
+		if !ignoreVideos {
 			regextest := videoSearch.FindStringSubmatch(post.Video)
 			if regextest == nil { // hdUrl is false. We have to get the other URL.
 				regextest = altVideoSearch.FindStringSubmatch(post.Video)
@@ -117,10 +112,9 @@ func parseDataForFiles(post Post) (URLs []string) {
 					URLs = append(URLs, GetGfycatURL(v))
 				}
 			}
-		})
+		}
 
 	default:
-		return
 	} // Done switch statement
 	return URLs
 }
