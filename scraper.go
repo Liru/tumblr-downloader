@@ -52,71 +52,86 @@ var (
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
+var PostParseMap = map[string]func(Post) []string{
+	"photo":   parsePhotoPost,
+	"answer":  parseAnswerPost,
+	"regular": parseRegularPost,
+	"video":   parseVideoPost,
+}
+
+func parsePhotoPost(post Post) (URLs []string) {
+	if !ignorePhotos {
+		if len(post.Photos) == 0 {
+			URLs = append(URLs, post.PhotoURL)
+		} else {
+			for _, photo := range post.Photos {
+				URLs = append(URLs, photo.PhotoURL)
+			}
+		}
+	}
+
+	if !ignoreVideos {
+		regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
+		if regexResult != nil {
+			for _, v := range regexResult[1:] {
+				URLs = append(URLs, GetGfycatURL(v))
+			}
+		}
+	}
+	return
+}
+
+func parseAnswerPost(post Post) (URLs []string) {
+	if !ignorePhotos {
+		URLs = inlineSearch.FindAllString(post.Answer, -1)
+	}
+	return
+}
+
+func parseRegularPost(post Post) (URLs []string) {
+	if !ignorePhotos {
+		URLs = inlineSearch.FindAllString(post.RegularBody, -1)
+	}
+	return
+}
+
+func parseVideoPost(post Post) (URLs []string) {
+	if !ignoreVideos {
+		regextest := videoSearch.FindStringSubmatch(post.Video)
+		if regextest == nil { // hdUrl is false. We have to get the other URL.
+			regextest = altVideoSearch.FindStringSubmatch(post.Video)
+		}
+
+		// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
+		// In that case, ignore it and move on. Not my problem.
+		if regextest == nil {
+			return
+		}
+		videoURL := strings.Replace(regextest[1], `\`, ``, -1)
+
+		// If there are problems with downloading video, the below part may be the cause.
+		// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
+		videoURL += ".mp4"
+
+		URLs = append(URLs, videoURL)
+
+		// Here, we get the GfyCat urls from the post.
+		regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
+		if regextest != nil {
+			for _, v := range regextest[1:] {
+				URLs = append(URLs, GetGfycatURL(v))
+			}
+		}
+	}
+	return
+}
+
 func parseDataForFiles(post Post) (URLs []string) {
-	switch post.Type { // TODO: Refactor and clean this up. This is messy and has repeated code.
-	case "photo":
-
-		if !ignorePhotos {
-			if len(post.Photos) == 0 {
-				URLs = append(URLs, post.PhotoURL)
-			} else {
-				for _, photo := range post.Photos {
-					URLs = append(URLs, photo.PhotoURL)
-				}
-			}
-		}
-
-		if !ignoreVideos {
-			regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
-			if regexResult != nil {
-				for _, v := range regexResult[1:] {
-					URLs = append(URLs, GetGfycatURL(v))
-				}
-			}
-		}
-
-	case "answer":
-		if !ignorePhotos {
-			URLs = inlineSearch.FindAllString(post.Answer, -1)
-		}
-
-	case "regular":
-		if !ignorePhotos {
-			URLs = inlineSearch.FindAllString(post.RegularBody, -1)
-		}
-
-	case "video":
-		if !ignoreVideos {
-			regextest := videoSearch.FindStringSubmatch(post.Video)
-			if regextest == nil { // hdUrl is false. We have to get the other URL.
-				regextest = altVideoSearch.FindStringSubmatch(post.Video)
-			}
-
-			// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
-			// In that case, ignore it and move on. Not my problem.
-			if regextest == nil {
-				return
-			}
-			videoURL := strings.Replace(regextest[1], `\`, ``, -1)
-
-			// If there are problems with downloading video, the below part may be the cause.
-			// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
-			videoURL += ".mp4"
-
-			URLs = append(URLs, videoURL)
-
-			// Here, we get the GfyCat urls from the post.
-			regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
-			if regextest != nil {
-				for _, v := range regextest[1:] {
-					URLs = append(URLs, GetGfycatURL(v))
-				}
-			}
-		}
-
-	default:
-	} // Done switch statement
-	return URLs
+	fn, ok := PostParseMap[post.Type]
+	if ok {
+		URLs = fn(post)
+	}
+	return
 }
 
 func makeTumblrURL(user *blog, i int) *url.URL {
