@@ -169,6 +169,22 @@ func shouldFinishScraping(lim <-chan time.Time, done <-chan struct{}) bool {
 	}
 }
 
+// strIntLess calculates `strOld < strNew` as a comparison
+// without converting to int.
+//
+// strIntLess assumes that the strings being compared are positive integers.
+func strIntLess(strOld, strNew string) bool {
+	lenOld, lenNew := len(strOld), len(strNew)
+
+	if lenOld > lenNew {
+		return false
+	}
+	if lenOld < lenNew {
+		return true
+	}
+	return strOld < strNew
+}
+
 func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
 	highestID := "0"
