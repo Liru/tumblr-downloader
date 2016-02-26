@@ -18,6 +18,8 @@ var (
 	totalDownloaded, totalFound uint64
 	alreadyExists, totalErrors  uint64 // Used for atomic operation
 
+	totalSizeDownloaded uint64
+
 	numDownloaders    int
 	requestRate       int
 	updateMode        bool
@@ -209,6 +211,7 @@ func showProgress(s ...interface{}) {
 
 func printSummary() {
 	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
+	fmt.Println(byteSize(totalSizeDownloaded), "downloaded during this session.")
 	if alreadyExists != 0 {
 		fmt.Println(alreadyExists, "previously downloaded.")
 	}

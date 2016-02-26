@@ -44,7 +44,6 @@ func (i Image) Download() {
 	if err != nil {
 		log.Fatal("ReadAll:", err)
 	}
-
 	file := path.Join(downloadDirectory, i.User, path.Base(i.URL))
 
 	err = ioutil.WriteFile(file, pic, 0644)
@@ -59,6 +58,7 @@ func (i Image) Download() {
 
 	i.ProgressBar.Increment()
 	atomic.AddUint64(&totalDownloaded, 1)
+	atomic.AddUint64(&totalSizeDownloaded, uint64(len(pic)))
 
 }
 
