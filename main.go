@@ -24,6 +24,7 @@ var (
 	requestRate       int
 	updateMode        bool
 	serverMode        bool
+	serverSleep       time.Duration
 	downloadDirectory string
 
 	ignorePhotos   bool
@@ -46,12 +47,13 @@ func init() {
 	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests per second to make.")
 	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered.")
 	flag.BoolVar(&serverMode, "server", false, "Reruns the downloader regularly after a short pause.")
+	flag.DurationVar(&serverSleep, "sleep", time.Hour, "Amount of time between download sessions. Used only if server mode is enabled.")
 
 	flag.BoolVar(&ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
 	flag.BoolVar(&ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
 	flag.BoolVar(&ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
 	flag.BoolVar(&useProgressBar, "p", false, "Use a progress bar to show download status.")
-	flag.StringVar(&downloadDirectory, "dir", "", "The directory where the files are saved.")
+	flag.StringVar(&downloadDirectory, "dir", "", "The `directory` where the files are saved. Default is the directory the program is run from.")
 }
 
 func newBlog(name string) *blog {
@@ -208,9 +210,8 @@ func main() {
 			break
 		}
 
-		serverSleepTime := 5 * time.Minute
-		fmt.Println("Sleeping for", serverSleepTime)
-		time.Sleep(serverSleepTime)
+		fmt.Println("Sleeping for", serverSleep)
+		time.Sleep(serverSleep)
 		updateMode = true
 		ticker.Stop()
 	}
