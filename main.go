@@ -23,6 +23,7 @@ var (
 	numDownloaders    int
 	requestRate       int
 	updateMode        bool
+	serverMode        bool
 	downloadDirectory string
 
 	ignorePhotos   bool
@@ -44,6 +45,7 @@ func init() {
 	flag.IntVar(&numDownloaders, "d", 10, "Number of downloaders to run at once.")
 	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests per second to make.")
 	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered.")
+	flag.BoolVar(&serverMode, "server", false, "Reruns the downloader regularly after a short pause.")
 
 	flag.BoolVar(&ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
 	flag.BoolVar(&ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
@@ -139,7 +141,6 @@ func setupDatabase(userBlogs []*blog) {
 }
 
 func main() {
-
 	flag.Parse()
 
 	userBlogs := getBlogsToDownload()
@@ -153,52 +154,66 @@ func main() {
 
 	// Here, we're done parsing flags.
 
-	limiter := make(chan time.Time, 10*requestRate)
-
-	go func() {
-		for t := range time.Tick(time.Second / time.Duration(requestRate)) {
-			select {
-			case limiter <- t:
-			default:
-			}
-		}
-	}()
-
 	imageChannels := make([]<-chan Image, len(userBlogs)) // FIXME: Seems dirty.
 
-	// Set up the scraping process.
+	for {
 
-	for i, user := range userBlogs {
-		imgChan := scrape(user, limiter)
-		imageChannels[i] = imgChan
+		limiter := make(chan time.Time, 10*requestRate)
+		ticker := time.NewTicker(time.Second / time.Duration(requestRate))
+
+		go func() {
+			for t := range ticker.C {
+				select {
+				case limiter <- t:
+				default:
+				}
+			}
+		}()
+
+		// Set up the scraping process.
+
+		for i, user := range userBlogs {
+			imgChan := scrape(user, limiter)
+			imageChannels[i] = imgChan
+		}
+
+		done := make(chan struct{})
+		defer close(done)
+		images := merge(done, imageChannels)
+
+		// Set up progress bars.
+
+		if useProgressBar {
+			pBar.Start()
+		}
+
+		// Set up downloaders.
+
+		var downloaderWg sync.WaitGroup
+		downloaderWg.Add(numDownloaders)
+
+		for i := 0; i < numDownloaders; i++ {
+			go func(j int) {
+				downloader(j, limiter, images) // images will close when scrapers are all done
+				downloaderWg.Done()
+			}(i)
+		}
+
+		downloaderWg.Wait() // Waits for all downloads to complete.
+
+		fmt.Println("Downloading complete.")
+		printSummary()
+
+		if !serverMode {
+			break
+		}
+
+		serverSleepTime := 5 * time.Minute
+		fmt.Println("Sleeping for", serverSleepTime)
+		time.Sleep(serverSleepTime)
+		updateMode = true
+		ticker.Stop()
 	}
-
-	done := make(chan struct{})
-	defer close(done)
-	images := merge(done, imageChannels)
-
-	// Set up progress bars.
-
-	if useProgressBar {
-		pBar.Start()
-	}
-
-	// Set up downloaders.
-
-	var downloaderWg sync.WaitGroup
-	downloaderWg.Add(numDownloaders)
-
-	for i := 0; i < numDownloaders; i++ {
-		go func(j int) {
-			downloader(j, limiter, images) // images will close when scrapers are all done
-			downloaderWg.Done()
-		}(i)
-	}
-
-	downloaderWg.Wait() // Waits for all downloads to complete.
-
-	fmt.Println("Downloading complete.")
-	printSummary()
 }
 
 func showProgress(s ...interface{}) {
