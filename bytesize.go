@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	_         = iota // ignore first value by assigning to blank identifier
-	KB uint64 = 1 << (10 * iota)
+	_          = iota // ignore first value by assigning to blank identifier
+	KB float64 = 1 << (10 * iota)
 	MB
 	GB
 	TB
@@ -14,7 +14,8 @@ const (
 	EB
 )
 
-func byteSize(b uint64) string {
+func byteSize(i uint64) string {
+	b := float64(i)
 	switch {
 	case b >= EB:
 		return fmt.Sprintf("%.2fEB", b/EB)
@@ -29,5 +30,5 @@ func byteSize(b uint64) string {
 	case b >= KB:
 		return fmt.Sprintf("%.2fKB", b/KB)
 	}
-	return fmt.Sprintf("%.2fB", b)
+	return fmt.Sprintf("%dB", i)
 }
