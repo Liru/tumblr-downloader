@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func updateDatabase(name string, id *string) {
+func updateDatabase(name string, id string) {
 
 	err := database.Update(func(tx *bolt.Tx) error {
 
@@ -17,7 +17,7 @@ func updateDatabase(name string, id *string) {
 		}
 
 		// Set the value "bar" for the key "foo".
-		if err := b.Put([]byte(name), []byte(*id)); err != nil {
+		if err := b.Put([]byte(name), []byte(id)); err != nil {
 			return err
 		}
 		return nil

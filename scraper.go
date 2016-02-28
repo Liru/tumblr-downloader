@@ -187,7 +187,6 @@ func strIntLess(strOld, strNew string) bool {
 
 func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
-	highestID := "0"
 	var IDMutex sync.Mutex
 
 	var once sync.Once
@@ -206,7 +205,6 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 			fmt.Println("Done scraping for", user.name, "(", i-1, "pages )")
 			wg.Wait()
 			close(imageChannel)
-			updateDatabase(user.name, &highestID)
 		}()
 
 		for i = 1; ; i++ {
@@ -254,9 +252,9 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 					postIDint, _ := strconv.Atoi(post.ID)
 
 					IDMutex.Lock()
-					highestIDint, _ := strconv.Atoi(highestID)
+					highestIDint, _ := strconv.Atoi(user.highestPostID)
 					if postIDint >= highestIDint {
-						highestID = post.ID
+						user.highestPostID = post.ID
 					}
 					IDMutex.Unlock()
 

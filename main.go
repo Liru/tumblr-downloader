@@ -37,9 +37,10 @@ var (
 )
 
 type blog struct {
-	name, tag   string
-	lastPostID  string
-	progressBar *pb.ProgressBar
+	name, tag     string
+	lastPostID    string
+	highestPostID string
+	progressBar   *pb.ProgressBar
 }
 
 func init() {
@@ -58,9 +59,10 @@ func init() {
 
 func newBlog(name string) *blog {
 	return &blog{
-		name:        name,
-		lastPostID:  "0",
-		progressBar: pBar,
+		name:          name,
+		lastPostID:    "0",
+		highestPostID: "0",
+		progressBar:   pBar,
 	}
 }
 
@@ -202,6 +204,10 @@ func main() {
 		}
 
 		downloaderWg.Wait() // Waits for all downloads to complete.
+
+		for _, user := range userBlogs {
+			updateDatabase(user.name, user.highestPostID)
+		}
 
 		fmt.Println("Downloading complete.")
 		printSummary()
