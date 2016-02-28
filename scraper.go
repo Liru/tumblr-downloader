@@ -59,6 +59,14 @@ var PostParseMap = map[string]func(Post) []string{
 	"video":   parseVideoPost,
 }
 
+// TrimJS trims the javascript response received from Tumblr.
+// The response starts with "var tumblr_api_read = " and ends with ";".
+// We need to remove these to parse the response as JSON.
+func TrimJS(c []byte) []byte {
+	// The length of "var tumblr_api_read = " is 22.
+	return c[22 : len(c)-1]
+}
+
 func parsePhotoPost(post Post) (URLs []string) {
 	if !ignorePhotos {
 		if len(post.Photos) == 0 {
@@ -229,13 +237,13 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 			contents, _ := ioutil.ReadAll(resp.Body)
 
 			// This is returned as pure javascript. We need to filter out the variable and the ending semicolon.
-			contents = []byte(strings.Replace(string(contents), "var tumblr_api_read = ", "", 1))
-			contents = []byte(strings.Replace(string(contents), ";", "", -1))
+			contents = TrimJS(contents)
 
 			var blog Blog
 			err = json.Unmarshal(contents, &blog)
 			if err != nil {
-
+				// Goddamnit tumblr, make a consistent API that doesn't
+				// fucking return strings AND booleans in the same field
 			}
 
 			if len(blog.Posts) == 0 {
