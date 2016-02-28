@@ -195,7 +195,7 @@ func strIntLess(strOld, strNew string) bool {
 
 func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 	var wg sync.WaitGroup
-	var IDMutex sync.Mutex
+	var IDMutex sync.RWMutex
 
 	var once sync.Once
 	imageChannel := make(chan Image, 1000)
@@ -254,19 +254,26 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 
 			go func() {
 				defer wg.Done()
-				lastPostIDint, err := strconv.Atoi(user.lastPostID)
+
 				checkFatalError(err)
 				for _, post := range blog.Posts {
-					postIDint, _ := strconv.Atoi(post.ID)
 
-					IDMutex.Lock()
-					highestIDint, _ := strconv.Atoi(user.highestPostID)
-					if postIDint >= highestIDint {
-						user.highestPostID = post.ID
+					IDMutex.RLock()
+					if strIntLess(user.highestPostID, post.ID) {
+						IDMutex.RUnlock()
+						IDMutex.Lock()
+
+						// We need to check again because atomicity isn't guaranteed.
+						if strIntLess(user.highestPostID, post.ID) {
+							user.highestPostID = post.ID
+						}
+
+						IDMutex.Unlock()
+					} else {
+						IDMutex.RUnlock()
 					}
-					IDMutex.Unlock()
 
-					if (postIDint <= lastPostIDint) && updateMode {
+					if updateMode && strIntLess(post.ID, user.lastPostID) {
 						once.Do(closeDone)
 						break
 					}
