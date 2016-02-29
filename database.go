@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/boltdb/bolt"
 	"log"
+
+	"github.com/blang/semver"
+	"github.com/boltdb/bolt"
 )
 
 func setupDatabase(userBlogs []*blog) {
@@ -27,6 +29,15 @@ func setupDatabase(userBlogs []*blog) {
 			}
 		}
 
+		storedVersion := string(b.Get([]byte("_VERSION_")))
+		v, err := semver.Parse(storedVersion)
+		if err != nil {
+			// Usually means 0.0.0, which means old database.
+			log.Println(err)
+		}
+
+		checkVersion(v)
+
 		return nil
 	})
 
@@ -42,7 +53,7 @@ func updateDatabase(name string, id string) {
 		b := tx.Bucket([]byte("tumblr"))
 
 		if b == nil {
-			fmt.Println("sheeeeeeeeeeit")
+			log.Println(`Bucket "tumblr" doesn't exist in database. Something went wrong.`)
 		}
 
 		// Set the value "bar" for the key "foo".
@@ -56,4 +67,34 @@ func updateDatabase(name string, id string) {
 		log.Fatal("database: ", err)
 	}
 
+}
+
+func updateDatabaseVersion() {
+	err := database.Update(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte("tumblr"))
+
+		if b == nil {
+			log.Println(`Bucket "tumblr" doesn't exist in database. Something went wrong.`)
+		}
+
+		// Set the value "bar" for the key "foo".
+		if err := b.Put([]byte(`_VERSION_`),
+			[]byte(currentVersion.String())); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal("database: ", err)
+	}
+}
+
+func checkVersion(v semver.Version) {
+	fmt.Println("Current version is", currentVersion)
+	if v.LT(currentVersion) {
+		forceCheck = true
+		log.Println("Old version detected. Enabling force-check to download possibly missed files.")
+	}
 }

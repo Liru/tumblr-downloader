@@ -10,9 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/boltdb/bolt"
 	"github.com/cheggaaa/pb"
 )
+
+// VERSION is the current version of the program. It is used for
+// checking if blogs need to be force-updated.
+const VERSION string = "1.4.0"
 
 var (
 	totalDownloaded, totalFound uint64
@@ -33,8 +38,9 @@ var (
 	ignoreAudio    bool
 	useProgressBar bool
 
-	database *bolt.DB
-	pBar     = pb.New(0)
+	database       *bolt.DB
+	pBar           = pb.New(0)
+	currentVersion = semver.MustParse(VERSION)
 )
 
 type blog struct {
@@ -185,6 +191,7 @@ func main() {
 
 		downloaderWg.Wait() // Waits for all downloads to complete.
 
+		updateDatabaseVersion()
 		for _, user := range userBlogs {
 			updateDatabase(user.name, user.highestPostID)
 		}
