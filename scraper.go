@@ -255,7 +255,6 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 			go func() {
 				defer wg.Done()
 
-				checkFatalError(err)
 				for _, post := range blog.Posts {
 
 					IDMutex.RLock()
@@ -273,7 +272,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 						IDMutex.RUnlock()
 					}
 
-					if updateMode && strIntLess(post.ID, user.lastPostID) {
+					if !forceCheck && strIntLess(post.ID, user.lastPostID) {
 						once.Do(closeDone)
 						break
 					}

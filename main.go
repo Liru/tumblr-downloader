@@ -23,6 +23,7 @@ var (
 	numDownloaders    int
 	requestRate       int
 	updateMode        bool
+	forceCheck        bool
 	serverMode        bool
 	serverSleep       time.Duration
 	downloadDirectory string
@@ -46,7 +47,8 @@ type blog struct {
 func init() {
 	flag.IntVar(&numDownloaders, "d", 10, "Number of downloaders to run at once.")
 	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests per second to make.")
-	flag.BoolVar(&updateMode, "u", false, "Update mode: Stop searching a tumblr when old files are encountered.")
+	flag.BoolVar(&updateMode, "u", false, "Update mode. DEPRECATED: Update mode is now the default mode.")
+	flag.BoolVar(&forceCheck, "f", false, "Bypasses update mode and rechecks all blog pages")
 	flag.BoolVar(&serverMode, "server", false, "Reruns the downloader regularly after a short pause.")
 	flag.DurationVar(&serverSleep, "sleep", time.Hour, "Amount of time between download sessions. Used only if server mode is enabled.")
 
@@ -115,17 +117,24 @@ func getBlogsToDownload() []*blog {
 	return userBlogs
 }
 
-func main() {
-	flag.Parse()
-
-	userBlogs := getBlogsToDownload()
-	setupDatabase(userBlogs)
-	defer database.Close()
+func verifyFlags() {
+	if updateMode {
+		log.Println("NOTE: Update mode is now the default mode. The -u flag is not needed and may cause problems in future versions.")
+	}
 
 	if numDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
 		numDownloaders = 10
 	}
+}
+
+func main() {
+	flag.Parse()
+	verifyFlags()
+
+	userBlogs := getBlogsToDownload()
+	setupDatabase(userBlogs)
+	defer database.Close()
 
 	// Here, we're done parsing flags.
 
@@ -190,6 +199,7 @@ func main() {
 		fmt.Println("Sleeping for", serverSleep)
 		time.Sleep(serverSleep)
 		updateMode = true
+		forceCheck = false
 		ticker.Stop()
 	}
 }
