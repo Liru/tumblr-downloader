@@ -95,6 +95,6 @@ func checkVersion(v semver.Version) {
 	fmt.Println("Current version is", currentVersion)
 	if v.LT(currentVersion) {
 		forceCheck = true
-		log.Println("Old version detected. Enabling force-check to download possibly missed files.")
+		log.Println("Checking entire tumblrblog due to new version.")
 	}
 }
