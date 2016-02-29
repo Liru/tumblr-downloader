@@ -64,7 +64,7 @@ var PostParseMap = map[string]func(Post) []string{
 // We need to remove these to parse the response as JSON.
 func TrimJS(c []byte) []byte {
 	// The length of "var tumblr_api_read = " is 22.
-	return c[22 : len(c)-1]
+	return c[22 : len(c)-2]
 }
 
 func parsePhotoPost(post Post) (URLs []string) {
