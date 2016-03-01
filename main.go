@@ -190,6 +190,8 @@ func main() {
 		}
 
 		downloaderWg.Wait() // Waits for all downloads to complete.
+		pBar.Update()
+		pBar.Finish()
 
 		updateDatabaseVersion()
 		for _, user := range userBlogs {
