@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/blang/semver"
@@ -143,6 +145,7 @@ func main() {
 	defer database.Close()
 
 	// Here, we're done parsing flags.
+	setupSignalInfo()
 
 	imageChannels := make([]<-chan Image, len(userBlogs)) // FIXME: Seems dirty.
 
@@ -243,6 +246,7 @@ func checkError(err error, args ...interface{}) {
 }
 
 func checkFatalError(err error, args ...interface{}) {
+	printSummary()
 	if err != nil {
 		if len(args) != 0 {
 			log.Fatal(args, err)
@@ -250,4 +254,21 @@ func checkFatalError(err error, args ...interface{}) {
 			log.Fatal(err)
 		}
 	}
+}
+
+func setupSignalInfo() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGQUIT)
+	go func() {
+		for {
+			s := <-sigChan
+			switch s {
+			case syscall.SIGINT:
+				printSummary()
+				os.Exit(1)
+			case syscall.SIGQUIT:
+				printSummary()
+			}
+		}
+	}()
 }
