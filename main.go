@@ -147,7 +147,7 @@ func main() {
 	// Here, we're done parsing flags.
 	setupSignalInfo()
 
-	imageChannels := make([]<-chan Image, len(userBlogs)) // FIXME: Seems dirty.
+	fileChannels := make([]<-chan File, len(userBlogs)) // FIXME: Seems dirty.
 
 	for {
 
@@ -166,13 +166,13 @@ func main() {
 		// Set up the scraping process.
 
 		for i, user := range userBlogs {
-			imgChan := scrape(user, limiter)
-			imageChannels[i] = imgChan
+			fileChan := scrape(user, limiter)
+			fileChannels[i] = fileChan
 		}
 
 		done := make(chan struct{})
 		defer close(done)
-		images := merge(done, imageChannels)
+		mergedFiles := merge(done, fileChannels)
 
 		// Set up progress bars.
 
@@ -187,7 +187,7 @@ func main() {
 
 		for i := 0; i < numDownloaders; i++ {
 			go func(j int) {
-				downloader(j, limiter, images) // images will close when scrapers are all done
+				downloader(j, limiter, mergedFiles) // mergedFiles will close when scrapers are all done
 				downloaderWg.Done()
 			}(i)
 		}
@@ -225,7 +225,7 @@ func showProgress(s ...interface{}) {
 }
 
 func printSummary() {
-	fmt.Println(totalDownloaded, "/", totalFound, "images downloaded.")
+	fmt.Println(totalDownloaded, "/", totalFound, "files downloaded.")
 	fmt.Println(byteSize(totalSizeDownloaded), "downloaded during this session.")
 	if alreadyExists != 0 {
 		fmt.Println(alreadyExists, "previously downloaded.")

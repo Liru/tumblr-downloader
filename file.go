@@ -18,19 +18,19 @@ var (
 	gfyRequest = "https://gfycat.com/cajax/get/%s"
 )
 
-// An Image contains information on a particular image URL, as well as the user where the URL was found.
-type Image struct {
+// A File contains information on a particular tumblr URL, as well as the user where the URL was found.
+type File struct {
 	User          string
 	URL           string
 	UnixTimestamp int64
 	ProgressBar   *pb.ProgressBar
 }
 
-// Download downloads an image specified in an Image's URL.
-func (i Image) Download() {
+// Download downloads a file specified in the file's URL.
+func (f File) Download() {
 	var resp *http.Response
 	for {
-		resp2, err := http.Get(i.URL)
+		resp2, err := http.Get(f.URL)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -44,28 +44,28 @@ func (i Image) Download() {
 	if err != nil {
 		log.Fatal("ReadAll:", err)
 	}
-	file := path.Join(downloadDirectory, i.User, path.Base(i.URL))
+	filename := path.Join(downloadDirectory, f.User, path.Base(f.URL))
 
-	err = ioutil.WriteFile(file, pic, 0644)
+	err = ioutil.WriteFile(filename, pic, 0644)
 	if err != nil {
 		log.Fatal("WriteFile:", err)
 	}
 
-	err = os.Chtimes(file, time.Now(), time.Unix(i.UnixTimestamp, 0))
+	err = os.Chtimes(filename, time.Now(), time.Unix(f.UnixTimestamp, 0))
 	if err != nil {
 		log.Println(err)
 	}
 
-	i.ProgressBar.Increment()
+	f.ProgressBar.Increment()
 	atomic.AddUint64(&totalDownloaded, 1)
 	atomic.AddUint64(&totalSizeDownloaded, uint64(len(pic)))
 
 }
 
-// Standard String method for the Stringer interface.
-func (i Image) String() string {
-	date := time.Unix(i.UnixTimestamp, 0)
-	return i.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(i.URL)
+// String is the standard method for the Stringer interface.
+func (f File) String() string {
+	date := time.Unix(f.UnixTimestamp, 0)
+	return f.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(f.URL)
 }
 
 // Gfy houses the Gfycat response.

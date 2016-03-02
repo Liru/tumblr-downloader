@@ -2,13 +2,13 @@ package main
 
 import "sync"
 
-func merge(done <-chan struct{}, cs []<-chan Image) <-chan Image {
+func merge(done <-chan struct{}, cs []<-chan File) <-chan File {
 	var wg sync.WaitGroup
-	out := make(chan Image, 100)
+	out := make(chan File, 100)
 
 	// Start an output goroutine for each input channel in cs.  output
 	// copies values from c to out until c is closed, then calls wg.Done.
-	output := func(c <-chan Image) {
+	output := func(c <-chan File) {
 		defer wg.Done()
 		for n := range c {
 			select {

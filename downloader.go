@@ -7,17 +7,17 @@ import (
 	"time"
 )
 
-func downloader(id int, limiter <-chan time.Time, imgChan <-chan Image) {
-	for img := range imgChan {
+func downloader(id int, limiter <-chan time.Time, fileChan <-chan File) {
+	for f := range fileChan {
 
-		err := os.MkdirAll(path.Join(downloadDirectory, img.User), 0755)
+		err := os.MkdirAll(path.Join(downloadDirectory, f.User), 0755)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		<-limiter
-		showProgress(img)
-		img.Download()
+		showProgress(f)
+		f.Download()
 
 	}
 }

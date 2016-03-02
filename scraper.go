@@ -193,12 +193,12 @@ func strIntLess(strOld, strNew string) bool {
 	return strOld < strNew
 }
 
-func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
+func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 	var wg sync.WaitGroup
 	var IDMutex sync.RWMutex
 
 	var once sync.Once
-	imageChannel := make(chan Image, 1000)
+	fileChannel := make(chan File, 1000)
 
 	go func() {
 
@@ -212,7 +212,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 		defer func() {
 			fmt.Println("Done scraping for", user.name, "(", i-1, "pages )")
 			wg.Wait()
-			close(imageChannel)
+			close(fileChannel)
 		}()
 
 		for i = 1; ; i++ {
@@ -286,14 +286,14 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 					// fmt.Println(URLs)
 
 					for _, URL := range URLs {
-						i := Image{
+						f := File{
 							User:          user.name,
 							URL:           URL,
 							UnixTimestamp: post.UnixTimestamp,
 							ProgressBar:   user.progressBar,
 						}
 
-						filename := path.Base(i.URL)
+						filename := path.Base(f.URL)
 						pathname := path.Join(downloadDirectory, user.name, filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
@@ -310,7 +310,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 							user.progressBar.Update()
 						}
 						atomic.AddUint64(&totalFound, 1)
-						imageChannel <- i
+						fileChannel <- f
 					} // Done adding URLs from a single post
 
 				} // Done searching all posts on a page
@@ -320,5 +320,5 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan Image {
 		} // loop that searches blog, page by page
 
 	}() // Function that asynchronously adds all downloadables from a blog to a queue
-	return imageChannel
+	return fileChannel
 }
