@@ -27,22 +27,9 @@ var (
 
 	totalSizeDownloaded uint64
 
-	numDownloaders    int
-	requestRate       int
-	updateMode        bool
-	forceCheck        bool
-	serverMode        bool
-	serverSleep       time.Duration
-	downloadDirectory string
+	cfg Config
 
-	ignorePhotos   bool
-	ignoreVideos   bool
-	ignoreAudio    bool
-	useProgressBar bool
-
-	database       *bolt.DB
-	pBar           = pb.New(0)
-	currentVersion = semver.MustParse(VERSION)
+	database *bolt.DB
 )
 
 type blog struct {
@@ -53,18 +40,20 @@ type blog struct {
 }
 
 func init() {
-	flag.IntVar(&numDownloaders, "d", 10, "Number of downloaders to run at once.")
-	flag.IntVar(&requestRate, "r", 4, "Maximum number of requests per second to make.")
-	flag.BoolVar(&updateMode, "u", false, "Update mode. DEPRECATED: Update mode is now the default mode.")
-	flag.BoolVar(&forceCheck, "f", false, "Bypasses update mode and rechecks all blog pages")
-	flag.BoolVar(&serverMode, "server", false, "Reruns the downloader regularly after a short pause.")
-	flag.DurationVar(&serverSleep, "sleep", time.Hour, "Amount of time between download sessions. Used only if server mode is enabled.")
+	flag.IntVar(&cfg.numDownloaders, "d", 10, "Number of downloaders to run at once.")
+	flag.IntVar(&cfg.requestRate, "r", 4, "Maximum number of requests per second to make.")
+	flag.BoolVar(&cfg.updateMode, "u", false, "Update mode. DEPRECATED: Update mode is now the default mode.")
+	flag.BoolVar(&cfg.forceCheck, "f", false, "Bypasses update mode and rechecks all blog pages")
+	flag.BoolVar(&cfg.serverMode, "server", false, "Reruns the downloader regularly after a short pause.")
+	flag.DurationVar(&cfg.serverSleep, "sleep", time.Hour, "Amount of time between download sessions. Used only if server mode is enabled.")
 
-	flag.BoolVar(&ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
-	flag.BoolVar(&ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
-	flag.BoolVar(&ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
-	flag.BoolVar(&useProgressBar, "p", false, "Use a progress bar to show download status.")
-	flag.StringVar(&downloadDirectory, "dir", "", "The `directory` where the files are saved. Default is the directory the program is run from.")
+	flag.BoolVar(&cfg.ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
+	flag.BoolVar(&cfg.ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
+	flag.BoolVar(&cfg.ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
+	flag.BoolVar(&cfg.useProgressBar, "p", false, "Use a progress bar to show download status.")
+	flag.StringVar(&cfg.downloadDirectory, "dir", "", "The `directory` where the files are saved. Default is the directory the program is run from.")
+
+	cfg.Version = semver.MustParse(VERSION)
 }
 
 func newBlog(name string) *blog {
@@ -72,7 +61,6 @@ func newBlog(name string) *blog {
 		name:          name,
 		lastPostID:    "0",
 		highestPostID: "0",
-		progressBar:   pBar,
 	}
 }
 
@@ -126,13 +114,13 @@ func getBlogsToDownload() []*blog {
 }
 
 func verifyFlags() {
-	if updateMode {
+	if cfg.updateMode {
 		log.Println("NOTE: Update mode is now the default mode. The -u flag is not needed and may cause problems in future versions.")
 	}
 
-	if numDownloaders < 1 {
+	if cfg.numDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
-		numDownloaders = 10
+		cfg.numDownloaders = 10
 	}
 }
 
@@ -146,13 +134,14 @@ func main() {
 
 	// Here, we're done parsing flags.
 	setupSignalInfo()
+	pBar := pb.New(0)
 
 	fileChannels := make([]<-chan File, len(userBlogs)) // FIXME: Seems dirty.
 
 	for {
 
-		limiter := make(chan time.Time, 10*requestRate)
-		ticker := time.NewTicker(time.Second / time.Duration(requestRate))
+		limiter := make(chan time.Time, 10*cfg.requestRate)
+		ticker := time.NewTicker(time.Second / time.Duration(cfg.requestRate))
 
 		go func() {
 			for t := range ticker.C {
@@ -176,16 +165,16 @@ func main() {
 
 		// Set up progress bars.
 
-		if useProgressBar {
+		if cfg.useProgressBar {
 			pBar.Start()
 		}
 
 		// Set up downloaders.
 
 		var downloaderWg sync.WaitGroup
-		downloaderWg.Add(numDownloaders)
+		downloaderWg.Add(cfg.numDownloaders)
 
-		for i := 0; i < numDownloaders; i++ {
+		for i := 0; i < cfg.numDownloaders; i++ {
 			go func(j int) {
 				downloader(j, limiter, mergedFiles) // mergedFiles will close when scrapers are all done
 				downloaderWg.Done()
@@ -204,21 +193,21 @@ func main() {
 		fmt.Println("Downloading complete.")
 		printSummary()
 
-		if !serverMode {
+		if !cfg.serverMode {
 			break
 		}
 
-		fmt.Println("Sleeping for", serverSleep)
-		time.Sleep(serverSleep)
-		updateMode = true
-		forceCheck = false
+		fmt.Println("Sleeping for", cfg.serverSleep)
+		time.Sleep(cfg.serverSleep)
+		cfg.updateMode = true
+		cfg.forceCheck = false
 		ticker.Stop()
 	}
 }
 
 func showProgress(s ...interface{}) {
-	if useProgressBar {
-		pBar.Update()
+	if cfg.useProgressBar {
+		// pBar.Update()
 	} else {
 		fmt.Println(s...)
 	}

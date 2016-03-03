@@ -40,7 +40,7 @@ func TrimJS(c []byte) []byte {
 }
 
 func parsePhotoPost(post Post) (URLs []string) {
-	if !ignorePhotos {
+	if !cfg.ignorePhotos {
 		if len(post.Photos) == 0 {
 			URLs = append(URLs, post.PhotoURL)
 		} else {
@@ -50,7 +50,7 @@ func parsePhotoPost(post Post) (URLs []string) {
 		}
 	}
 
-	if !ignoreVideos {
+	if !cfg.ignoreVideos {
 		regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
 		if regexResult != nil {
 			for _, v := range regexResult[1:] {
@@ -62,21 +62,21 @@ func parsePhotoPost(post Post) (URLs []string) {
 }
 
 func parseAnswerPost(post Post) (URLs []string) {
-	if !ignorePhotos {
+	if !cfg.ignorePhotos {
 		URLs = inlineSearch.FindAllString(post.Answer, -1)
 	}
 	return
 }
 
 func parseRegularPost(post Post) (URLs []string) {
-	if !ignorePhotos {
+	if !cfg.ignorePhotos {
 		URLs = inlineSearch.FindAllString(post.RegularBody, -1)
 	}
 	return
 }
 
 func parseVideoPost(post Post) (URLs []string) {
-	if !ignoreVideos {
+	if !cfg.ignoreVideos {
 		regextest := videoSearch.FindStringSubmatch(post.Video)
 		if regextest == nil { // hdUrl is false. We have to get the other URL.
 			regextest = altVideoSearch.FindStringSubmatch(post.Video)
@@ -211,7 +211,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 			// This is returned as pure javascript. We need to filter out the variable and the ending semicolon.
 			contents = TrimJS(contents)
 
-			var blog Blog
+			var blog TumbleLog
 			err = json.Unmarshal(contents, &blog)
 			if err != nil {
 				// Goddamnit tumblr, make a consistent API that doesn't
@@ -244,7 +244,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 						IDMutex.RUnlock()
 					}
 
-					if !forceCheck && strIntLess(post.ID, user.lastPostID) {
+					if !cfg.forceCheck && strIntLess(post.ID, user.lastPostID) {
 						once.Do(closeDone)
 						break
 					}
@@ -266,7 +266,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 						}
 
 						filename := path.Base(f.URL)
-						pathname := path.Join(downloadDirectory, user.name, filename)
+						pathname := path.Join(cfg.downloadDirectory, user.name, filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
 						// Or, if update mode is enabled, then we can simply stop searching.
@@ -278,9 +278,9 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 						}
 
 						atomic.AddInt64(&user.progressBar.Total, 1)
-						if useProgressBar {
-							user.progressBar.Update()
-						}
+
+						showProgress()
+
 						atomic.AddUint64(&totalFound, 1)
 						fileChannel <- f
 					} // Done adding URLs from a single post

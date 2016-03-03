@@ -80,7 +80,7 @@ func updateDatabaseVersion() {
 
 		// Set the value "bar" for the key "foo".
 		if err := b.Put([]byte(`_VERSION_`),
-			[]byte(currentVersion.String())); err != nil {
+			[]byte(cfg.Version.String())); err != nil {
 			return err
 		}
 		return nil
@@ -92,9 +92,9 @@ func updateDatabaseVersion() {
 }
 
 func checkVersion(v semver.Version) {
-	fmt.Println("Current version is", currentVersion)
-	if v.LT(currentVersion) {
-		forceCheck = true
+	fmt.Println("Current version is", cfg.Version)
+	if v.LT(cfg.Version) {
+		cfg.forceCheck = true
 		log.Println("Checking entire tumblrblog due to new version.")
 	}
 }
