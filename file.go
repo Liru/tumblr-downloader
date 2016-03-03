@@ -10,8 +10,6 @@ import (
 	"path"
 	"sync/atomic"
 	"time"
-
-	"github.com/cheggaaa/pb"
 )
 
 var (
@@ -23,7 +21,14 @@ type File struct {
 	User          string
 	URL           string
 	UnixTimestamp int64
-	ProgressBar   *pb.ProgressBar
+	Filename      string
+}
+
+func newFile(URL string) File {
+	return File{
+		URL:      URL,
+		Filename: path.Base(URL),
+	}
 }
 
 // Download downloads a file specified in the file's URL.
@@ -44,7 +49,7 @@ func (f File) Download() {
 	if err != nil {
 		log.Fatal("ReadAll:", err)
 	}
-	filename := path.Join(downloadDirectory, f.User, path.Base(f.URL))
+	filename := path.Join(cfg.downloadDirectory, f.User, path.Base(f.Filename))
 
 	err = ioutil.WriteFile(filename, pic, 0644)
 	if err != nil {
@@ -56,7 +61,7 @@ func (f File) Download() {
 		log.Println(err)
 	}
 
-	f.ProgressBar.Increment()
+	pBar.Increment()
 	atomic.AddUint64(&totalDownloaded, 1)
 	atomic.AddUint64(&totalSizeDownloaded, uint64(len(pic)))
 
@@ -65,7 +70,7 @@ func (f File) Download() {
 // String is the standard method for the Stringer interface.
 func (f File) String() string {
 	date := time.Unix(f.UnixTimestamp, 0)
-	return f.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(f.URL)
+	return f.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(f.Filename)
 }
 
 // Gfy houses the Gfycat response.
@@ -92,14 +97,28 @@ func GetGfycatURL(slug string) string {
 	}
 	defer resp.Body.Close()
 
-	gfyData, _ := ioutil.ReadAll(resp.Body)
+	gfyData, err := ioutil.ReadAll(resp.Body)
+	checkFatalError(err)
 
 	var gfy Gfy
 
-	err := json.Unmarshal(gfyData, &gfy)
-	if err != nil {
-		log.Println("GfycatUnmarshal: ", err)
-	}
+	err = json.Unmarshal(gfyData, &gfy)
+	checkFatalError(err, "Gfycat Unmarshal:")
 
 	return gfy.GfyItem.Mp4Url
+}
+
+func getGfycatFiles(b, slug string) []File {
+	var files []File
+	regexResult := gfycatSearch.FindStringSubmatch(b)
+	if regexResult != nil {
+		for i, v := range regexResult[1:] {
+			gfyFile := newFile(GetGfycatURL(v))
+			if slug != "" {
+				gfyFile.Filename = fmt.Sprintf("%s_gfycat_%02d.mp4", slug, i+1)
+			}
+			files = append(files, gfyFile)
+		}
+	}
+	return files
 }

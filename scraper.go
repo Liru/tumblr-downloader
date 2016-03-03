@@ -24,7 +24,7 @@ var (
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
-var PostParseMap = map[string]func(Post) []string{
+var PostParseMap = map[string]func(Post) []File{
 	"photo":   parsePhotoPost,
 	"answer":  parseAnswerPost,
 	"regular": parseRegularPost,
@@ -36,46 +36,56 @@ var PostParseMap = map[string]func(Post) []string{
 // We need to remove these to parse the response as JSON.
 func TrimJS(c []byte) []byte {
 	// The length of "var tumblr_api_read = " is 22.
-	return c[22 : len(c)-2]
+	return c[22 : len(c)-1]
 }
 
-func parsePhotoPost(post Post) (URLs []string) {
+func parsePhotoPost(post Post) (files []File) {
+	var id string
 	if !cfg.ignorePhotos {
+
 		if len(post.Photos) == 0 {
-			URLs = append(URLs, post.PhotoURL)
+			f := newFile(post.PhotoURL)
+			files = append(files, f)
+			id = f.Filename
 		} else {
 			for _, photo := range post.Photos {
-				URLs = append(URLs, photo.PhotoURL)
+				f := newFile(photo.PhotoURL)
+				files = append(files, f)
+				id = f.Filename
 			}
+
 		}
 	}
 
 	if !cfg.ignoreVideos {
-		regexResult := gfycatSearch.FindStringSubmatch(post.PhotoCaption)
-		if regexResult != nil {
-			for _, v := range regexResult[1:] {
-				URLs = append(URLs, GetGfycatURL(v))
-			}
+		var slug string
+		if len(id) > 26 {
+			slug = id[:26]
+		}
+		files = append(files, getGfycatFiles(post.PhotoCaption, slug)...)
+	}
+	return
+}
+
+func parseAnswerPost(post Post) (files []File) {
+	if !cfg.ignorePhotos {
+		for _, f := range inlineSearch.FindAllString(post.Answer, -1) {
+			files = append(files, newFile(f))
 		}
 	}
 	return
 }
 
-func parseAnswerPost(post Post) (URLs []string) {
+func parseRegularPost(post Post) (files []File) {
 	if !cfg.ignorePhotos {
-		URLs = inlineSearch.FindAllString(post.Answer, -1)
+		for _, f := range inlineSearch.FindAllString(post.RegularBody, -1) {
+			files = append(files, newFile(f))
+		}
 	}
 	return
 }
 
-func parseRegularPost(post Post) (URLs []string) {
-	if !cfg.ignorePhotos {
-		URLs = inlineSearch.FindAllString(post.RegularBody, -1)
-	}
-	return
-}
-
-func parseVideoPost(post Post) (URLs []string) {
+func parseVideoPost(post Post) (files []File) {
 	if !cfg.ignoreVideos {
 		regextest := videoSearch.FindStringSubmatch(post.Video)
 		if regextest == nil { // hdUrl is false. We have to get the other URL.
@@ -93,23 +103,22 @@ func parseVideoPost(post Post) (URLs []string) {
 		// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
 		videoURL += ".mp4"
 
-		URLs = append(URLs, videoURL)
+		f := newFile(videoURL)
+		files = append(files, f)
 
-		// Here, we get the GfyCat urls from the post.
-		regextest = gfycatSearch.FindStringSubmatch(post.VideoCaption)
-		if regextest != nil {
-			for _, v := range regextest[1:] {
-				URLs = append(URLs, GetGfycatURL(v))
-			}
-		}
+		// We slice from 0 to 24 because that's the length of the ID
+		// portion of a tumblr video file.
+		slug := f.Filename[:23]
+
+		files = append(files, getGfycatFiles(post.VideoCaption, slug)...)
 	}
 	return
 }
 
-func parseDataForFiles(post Post) (URLs []string) {
+func parseDataForFiles(post Post) (files []File) {
 	fn, ok := PostParseMap[post.Type]
 	if ok {
-		URLs = fn(post)
+		files = fn(post)
 	}
 	return
 }
@@ -170,7 +179,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 	var IDMutex sync.RWMutex
 
 	var once sync.Once
-	fileChannel := make(chan File, 1000)
+	fileChannel := make(chan File, 10000)
 
 	go func() {
 
@@ -194,7 +203,6 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 
 			tumblrURL := makeTumblrURL(user, i)
 
-			// fmt.Println(user.name, "is on page", i)
 			showProgress(user.name, "is on page", i)
 			resp, err := http.Get(tumblrURL.String())
 
@@ -249,35 +257,28 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 						break
 					}
 
-					URLs := parseDataForFiles(post)
+					files := parseDataForFiles(post)
 
-					if len(URLs) == 0 {
+					if len(files) == 0 {
 						continue
 					}
 
-					// fmt.Println(URLs)
+					for _, f := range files {
 
-					for _, URL := range URLs {
-						f := File{
-							User:          user.name,
-							URL:           URL,
-							UnixTimestamp: post.UnixTimestamp,
-							ProgressBar:   user.progressBar,
-						}
-
-						filename := path.Base(f.URL)
-						pathname := path.Join(cfg.downloadDirectory, user.name, filename)
+						pathname := path.Join(cfg.downloadDirectory, user.name, f.Filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
 						// Or, if update mode is enabled, then we can simply stop searching.
 						_, err := os.Stat(pathname)
 						if err == nil {
 							atomic.AddUint64(&alreadyExists, 1)
-							// user.progressBar.Increment()
 							continue
 						}
 
-						atomic.AddInt64(&user.progressBar.Total, 1)
+						f.User = user.name
+						f.UnixTimestamp = post.UnixTimestamp
+
+						atomic.AddInt64(&pBar.Total, 1)
 
 						showProgress()
 

@@ -30,6 +30,7 @@ var (
 	cfg Config
 
 	database *bolt.DB
+	pBar     = pb.New(0)
 )
 
 type blog struct {
@@ -134,7 +135,6 @@ func main() {
 
 	// Here, we're done parsing flags.
 	setupSignalInfo()
-	pBar := pb.New(0)
 
 	fileChannels := make([]<-chan File, len(userBlogs)) // FIXME: Seems dirty.
 
@@ -182,7 +182,6 @@ func main() {
 		}
 
 		downloaderWg.Wait() // Waits for all downloads to complete.
-		pBar.Update()
 		pBar.Finish()
 
 		updateDatabaseVersion()
@@ -207,8 +206,8 @@ func main() {
 
 func showProgress(s ...interface{}) {
 	if cfg.useProgressBar {
-		// pBar.Update()
-	} else {
+		pBar.Update()
+	} else if len(s) > 0 {
 		fmt.Println(s...)
 	}
 }
@@ -235,7 +234,6 @@ func checkError(err error, args ...interface{}) {
 }
 
 func checkFatalError(err error, args ...interface{}) {
-	printSummary()
 	if err != nil {
 		if len(args) != 0 {
 			log.Fatal(args, err)
