@@ -123,9 +123,9 @@ func parseDataForFiles(post Post) (files []File) {
 	return
 }
 
-func makeTumblrURL(user *blog, i int) *url.URL {
+func makeTumblrURL(u *User, i int) *url.URL {
 
-	base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", user.name)
+	base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", u.name)
 
 	tumblrURL, err := url.Parse(base)
 	checkFatalError(err, "tumblrURL: ")
@@ -135,8 +135,8 @@ func makeTumblrURL(user *blog, i int) *url.URL {
 	vals.Add("start", strconv.Itoa((i-1)*50))
 	// vals.Add("type", "photo")
 
-	if user.tag != "" {
-		vals.Add("tagged", user.tag)
+	if u.tag != "" {
+		vals.Add("tagged", u.tag)
 	}
 
 	tumblrURL.RawQuery = vals.Encode()
@@ -174,7 +174,7 @@ func strIntLess(strOld, strNew string) bool {
 	return strOld < strNew
 }
 
-func scrape(user *blog, limiter <-chan time.Time) <-chan File {
+func scrape(u *User, limiter <-chan time.Time) <-chan File {
 	var wg sync.WaitGroup
 	var IDMutex sync.RWMutex
 
@@ -191,7 +191,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 		// Go evaluates params at defer instead of at execution.
 		// That, and it beats writing `defer` multiple times.
 		defer func() {
-			fmt.Println("Done scraping for", user.name, "(", i-1, "pages )")
+			fmt.Println("Done scraping for", u.name, "(", i-1, "pages )")
 			wg.Wait()
 			close(fileChannel)
 		}()
@@ -201,15 +201,15 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 				return
 			}
 
-			tumblrURL := makeTumblrURL(user, i)
+			tumblrURL := makeTumblrURL(u, i)
 
-			showProgress(user.name, "is on page", i)
+			showProgress(u.name, "is on page", i)
 			resp, err := http.Get(tumblrURL.String())
 
 			// XXX: Ugly as shit. This could probably be done better.
 			if err != nil {
 				i--
-				log.Println(user, err)
+				log.Println(u, err)
 				continue
 			}
 			defer resp.Body.Close()
@@ -238,13 +238,13 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 				for _, post := range blog.Posts {
 
 					IDMutex.RLock()
-					if post.ID > user.highestPostID {
+					if post.ID > u.highestPostID {
 						IDMutex.RUnlock()
 						IDMutex.Lock()
 
 						// We need to check again because atomicity isn't guaranteed.
-						if post.ID > user.highestPostID {
-							user.highestPostID = post.ID
+						if post.ID > u.highestPostID {
+							u.highestPostID = post.ID
 						}
 
 						IDMutex.Unlock()
@@ -252,7 +252,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 						IDMutex.RUnlock()
 					}
 
-					if !cfg.forceCheck && post.ID < user.lastPostID {
+					if !cfg.forceCheck && post.ID < u.lastPostID {
 						once.Do(closeDone)
 						break
 					}
@@ -265,7 +265,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 
 					for _, f := range files {
 
-						pathname := path.Join(cfg.downloadDirectory, user.name, f.Filename)
+						pathname := path.Join(cfg.downloadDirectory, u.name, f.Filename)
 
 						// If there is a file that exists, we skip adding it and move on to the next one.
 						// Or, if update mode is enabled, then we can simply stop searching.
@@ -275,7 +275,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 							continue
 						}
 
-						f.User = user.name
+						f.User = u.name
 						f.UnixTimestamp = post.UnixTimestamp
 
 						atomic.AddInt64(&pBar.Total, 1)

@@ -9,7 +9,7 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-func setupDatabase(userBlogs []*blog) {
+func setupDatabase(userBlogs []*User) {
 	db, err := bolt.Open("tumblr-update.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)

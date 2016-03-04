@@ -33,13 +33,6 @@ var (
 	pBar     = pb.New(0)
 )
 
-type blog struct {
-	name, tag     string
-	lastPostID    int64
-	highestPostID int64
-	progressBar   *pb.ProgressBar
-}
-
 func init() {
 	flag.IntVar(&cfg.numDownloaders, "d", 10, "Number of downloaders to run at once.")
 	flag.IntVar(&cfg.requestRate, "r", 4, "Maximum number of requests per second to make.")
@@ -57,15 +50,15 @@ func init() {
 	cfg.Version = semver.MustParse(VERSION)
 }
 
-func newBlog(name string) *blog {
-	return &blog{
+func newUser(name string) *User {
+	return &User{
 		name:          name,
 		lastPostID:    0,
 		highestPostID: 0,
 	}
 }
 
-func readUserFile() ([]*blog, error) {
+func readUserFile() ([]*User, error) {
 	path := "download.txt"
 	file, err := os.Open(path)
 	if err != nil {
@@ -73,25 +66,25 @@ func readUserFile() ([]*blog, error) {
 	}
 	defer file.Close()
 
-	var blogs []*blog
+	var users []*User
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		text := strings.Trim(scanner.Text(), " \n\r\t")
 		split := strings.SplitN(text, " ", 2)
 
-		b := newBlog(split[0])
+		b := newUser(split[0])
 
 		if len(split) > 1 {
 			b.tag = split[1]
 		}
 
-		blogs = append(blogs, b)
+		users = append(users, b)
 	}
 	// fmt.Println(blogs)
-	return blogs, scanner.Err()
+	return users, scanner.Err()
 }
 
-func getBlogsToDownload() []*blog {
+func getUsersToDownload() []*User {
 	users := flag.Args()
 
 	fileResults, err := readUserFile()
@@ -99,9 +92,9 @@ func getBlogsToDownload() []*blog {
 		log.Fatal(err)
 	}
 
-	userBlogs := make([]*blog, len(users))
+	userBlogs := make([]*User, len(users))
 	for _, user := range users {
-		userBlogs = append(userBlogs, newBlog(user))
+		userBlogs = append(userBlogs, newUser(user))
 	}
 
 	userBlogs = append(userBlogs, fileResults...)
@@ -129,7 +122,7 @@ func main() {
 	flag.Parse()
 	verifyFlags()
 
-	userBlogs := getBlogsToDownload()
+	userBlogs := getUsersToDownload()
 	setupDatabase(userBlogs)
 	defer database.Close()
 
