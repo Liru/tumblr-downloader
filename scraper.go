@@ -24,6 +24,8 @@ var (
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
+// PostParseMap maps tumblr post types to functions that search those
+// posts for content.
 var PostParseMap = map[string]func(Post) []File{
 	"photo":   parsePhotoPost,
 	"answer":  parseAnswerPost,
@@ -156,22 +158,6 @@ func shouldFinishScraping(lim <-chan time.Time, done <-chan struct{}) bool {
 			return false
 		}
 	}
-}
-
-// strIntLess calculates `strOld < strNew` as a comparison
-// without converting to int.
-//
-// strIntLess assumes that the strings being compared are positive integers.
-func strIntLess(strOld, strNew string) bool {
-	lenOld, lenNew := len(strOld), len(strNew)
-
-	if lenOld > lenNew {
-		return false
-	}
-	if lenOld < lenNew {
-		return true
-	}
-	return strOld < strNew
 }
 
 func scrape(u *User, limiter <-chan time.Time) <-chan File {
