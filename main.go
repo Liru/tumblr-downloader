@@ -35,8 +35,8 @@ var (
 
 type blog struct {
 	name, tag     string
-	lastPostID    string
-	highestPostID string
+	lastPostID    int64
+	highestPostID int64
 	progressBar   *pb.ProgressBar
 }
 
@@ -60,8 +60,8 @@ func init() {
 func newBlog(name string) *blog {
 	return &blog{
 		name:          name,
-		lastPostID:    "0",
-		highestPostID: "0",
+		lastPostID:    0,
+		highestPostID: 0,
 	}
 }
 

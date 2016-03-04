@@ -238,12 +238,12 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 				for _, post := range blog.Posts {
 
 					IDMutex.RLock()
-					if strIntLess(user.highestPostID, post.ID) {
+					if post.ID > user.highestPostID {
 						IDMutex.RUnlock()
 						IDMutex.Lock()
 
 						// We need to check again because atomicity isn't guaranteed.
-						if strIntLess(user.highestPostID, post.ID) {
+						if post.ID > user.highestPostID {
 							user.highestPostID = post.ID
 						}
 
@@ -252,7 +252,7 @@ func scrape(user *blog, limiter <-chan time.Time) <-chan File {
 						IDMutex.RUnlock()
 					}
 
-					if !cfg.forceCheck && strIntLess(post.ID, user.lastPostID) {
+					if !cfg.forceCheck && post.ID < user.lastPostID {
 						once.Do(closeDone)
 						break
 					}

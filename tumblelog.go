@@ -4,7 +4,7 @@ package main
 // It contains a PhotoURL, and, optionally, an array of photos.
 // If Photos isn't empty, it typically contains at least one URL which matches PhotoURL.
 type Post struct {
-	ID            string
+	ID            int64 `json:",string"`
 	Type          string
 	PhotoURL      string `json:"photo-url-1280"`
 	Photos        []Post `json:"photos,omitempty"`
@@ -25,5 +25,6 @@ type Post struct {
 // A TumbleLog is the outer container for Posts. It is necessary for easier JSON deserialization,
 // even though it's useless in and of itself.
 type TumbleLog struct {
-	Posts []Post `json:"posts"`
+	Posts      []Post `json:"posts"`
+	TotalPosts int    `json:"posts-total"`
 }

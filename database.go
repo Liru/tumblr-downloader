@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/blang/semver"
 	"github.com/boltdb/bolt"
@@ -25,7 +26,7 @@ func setupDatabase(userBlogs []*blog) {
 		for _, blog := range userBlogs {
 			v := b.Get([]byte(blog.name))
 			if len(v) != 0 {
-				blog.lastPostID = string(v) // TODO: Messy, probably.
+				blog.lastPostID, _ = strconv.ParseInt(string(v), 10, 64) // TODO: Messy, probably.
 			}
 		}
 
@@ -46,7 +47,7 @@ func setupDatabase(userBlogs []*blog) {
 	}
 }
 
-func updateDatabase(name string, id string) {
+func updateDatabase(name string, id int64) {
 
 	err := database.Update(func(tx *bolt.Tx) error {
 
@@ -56,8 +57,7 @@ func updateDatabase(name string, id string) {
 			log.Println(`Bucket "tumblr" doesn't exist in database. Something went wrong.`)
 		}
 
-		// Set the value "bar" for the key "foo".
-		if err := b.Put([]byte(name), []byte(id)); err != nil {
+		if err := b.Put([]byte(name), []byte(strconv.FormatInt(id, 10))); err != nil {
 			return err
 		}
 		return nil
