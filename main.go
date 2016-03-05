@@ -50,14 +50,6 @@ func init() {
 	cfg.Version = semver.MustParse(VERSION)
 }
 
-func newUser(name string) *User {
-	return &User{
-		name:          name,
-		lastPostID:    0,
-		highestPostID: 0,
-	}
-}
-
 func readUserFile() ([]*User, error) {
 	path := "download.txt"
 	file, err := os.Open(path)
@@ -72,7 +64,11 @@ func readUserFile() ([]*User, error) {
 		text := strings.Trim(scanner.Text(), " \n\r\t")
 		split := strings.SplitN(text, " ", 2)
 
-		b := newUser(split[0])
+		b, err := newUser(split[0])
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 
 		if len(split) > 1 {
 			b.tag = split[1]
@@ -92,9 +88,14 @@ func getUsersToDownload() []*User {
 		log.Fatal(err)
 	}
 
-	userBlogs := make([]*User, len(users))
+	var userBlogs []*User
 	for _, user := range users {
-		userBlogs = append(userBlogs, newUser(user))
+		u, err := newUser(user)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		userBlogs = append(userBlogs, u)
 	}
 
 	userBlogs = append(userBlogs, fileResults...)
