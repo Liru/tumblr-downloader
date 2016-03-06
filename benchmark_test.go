@@ -38,35 +38,6 @@ func benchmarkStrconvComparison(i int, b *testing.B) {
 	}
 }
 
-func benchmarkStrIntComparison(i int, b *testing.B) {
-	var IDMutex sync.Mutex
-	highestID := "122222222"
-
-	if i == 0 {
-		for n := 0; n < b.N; n++ {
-			strNew := "132145174"
-			IDMutex.Lock()
-			if strIntLess(highestID, strNew) {
-				highestID = strNew
-			}
-			IDMutex.Unlock()
-		}
-	} else {
-		b.SetParallelism(i)
-		b.RunParallel(func(pb *testing.PB) {
-			for pb.Next() {
-				strNew := "132145174"
-				IDMutex.Lock()
-				if strIntLess(highestID, strNew) {
-					highestID = strNew
-				}
-				IDMutex.Unlock()
-			}
-		})
-	}
-
-}
-
 func benchmarkInt64Comparison(i int, b *testing.B) {
 	var IDMutex sync.Mutex
 	highestID := int64(122222222)
@@ -108,18 +79,6 @@ func BenchmarkStrconvComparisonParallel1(b *testing.B) {
 
 func BenchmarkStrconvComparisonParallel10(b *testing.B) {
 	benchmarkStrconvComparison(10, b)
-}
-
-func BenchmarkStringintComparisonSingle(b *testing.B) {
-	benchmarkStrIntComparison(0, b)
-}
-
-func BenchmarkStringintComparisonParallel1(b *testing.B) {
-	benchmarkStrIntComparison(1, b)
-}
-
-func BenchmarkStringintComparisonParallel10(b *testing.B) {
-	benchmarkStrIntComparison(10, b)
 }
 
 func BenchmarkInt64ComparisonSingle(b *testing.B) {
