@@ -24,4 +24,6 @@ _testmain.go
 *.test
 *.prof
 
+# Byproducts of this project
 tumblr-downloader
+tumblr-update.db
