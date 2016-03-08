@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"regexp"
+	"sync/atomic"
 
 	"github.com/cheggaaa/pb"
 )
@@ -20,6 +23,15 @@ type User struct {
 	lastPostID    int64
 	highestPostID int64
 	progressBar   *pb.ProgressBar
+
+	filesFound     int
+	filesProcessed int
+
+	done        chan struct{}
+	fileChannel chan File
+
+	idProcessChan   chan int64
+	fileProcessChan chan int
 }
 
 func newUser(name string) (*User, error) {
@@ -50,4 +62,75 @@ func newUser(name string) (*User, error) {
 		lastPostID:    0,
 		highestPostID: 0,
 	}, nil
+}
+
+// StartHelper starts a helper goroutine that keeps track of things
+// such as a user's highest post ID.
+func (u *User) StartHelper() {
+	go func() {
+		for {
+			select {
+			case id := <-u.idProcessChan:
+				if id > u.highestPostID {
+					u.highestPostID = id
+				}
+			case <-u.done:
+				break
+			}
+		}
+	}()
+}
+
+// Queue does stuff.
+func (u *User) Queue(p Post) {
+	var counter int
+
+	files := parseDataForFiles(p)
+
+	if len(files) == 0 {
+		return
+	}
+
+	timestamp := p.UnixTimestamp
+
+	for _, f := range files {
+
+		pathname := path.Join(cfg.downloadDirectory, u.name, f.Filename)
+
+		// If there is a file that exists, we skip adding it and move on to the next one.
+		// Or, if update mode is enabled, then we can simply stop searching.
+		_, err := os.Stat(pathname)
+		if err == nil {
+			atomic.AddUint64(&alreadyExists, 1)
+			continue
+		}
+
+		f.User = u.name
+		f.UnixTimestamp = timestamp
+
+		atomic.AddInt64(&pBar.Total, 1)
+
+		showProgress()
+
+		atomic.AddUint64(&totalFound, 1)
+		u.fileChannel <- f
+	} // Done adding URLs from a single post
+
+	u.incrementFilesFound(counter)
+}
+
+// updateHighestPost sends an integer representing a post ID to the
+// user's helper goroutine. It will replace the highest post ID if
+// the value sent is higher than the current highest post. Otherwise,
+// it does nothing.
+func (u *User) updateHighestPost(i int64) {
+	go func() {
+		u.idProcessChan <- i
+	}()
+}
+
+func (u *User) incrementFilesFound(i int) {
+	go func() {
+		u.fileProcessChan <- i
+	}()
 }

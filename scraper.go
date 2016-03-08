@@ -7,13 +7,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -44,7 +41,6 @@ func TrimJS(c []byte) []byte {
 func parsePhotoPost(post Post) (files []File) {
 	var id string
 	if !cfg.ignorePhotos {
-
 		if len(post.Photos) == 0 {
 			f := newFile(post.PhotoURL)
 			files = append(files, f)
@@ -55,7 +51,6 @@ func parsePhotoPost(post Post) (files []File) {
 				files = append(files, f)
 				id = f.Filename
 			}
-
 		}
 	}
 
@@ -162,10 +157,9 @@ func shouldFinishScraping(lim <-chan time.Time, done <-chan struct{}) bool {
 
 func scrape(u *User, limiter <-chan time.Time) <-chan File {
 	var wg sync.WaitGroup
-	var IDMutex sync.RWMutex
 
 	var once sync.Once
-	fileChannel := make(chan File, 10000)
+	u.fileChannel = make(chan File, 10000)
 
 	go func() {
 
@@ -179,7 +173,7 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 		defer func() {
 			fmt.Println("Done scraping for", u.name, "(", i-1, "pages )")
 			wg.Wait()
-			close(fileChannel)
+			close(u.fileChannel)
 		}()
 
 		for i = 1; ; i++ {
@@ -223,54 +217,12 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 				for _, post := range blog.Posts {
 
-					IDMutex.RLock()
-					if post.ID > u.highestPostID {
-						IDMutex.RUnlock()
-						IDMutex.Lock()
-
-						// We need to check again because atomicity isn't guaranteed.
-						if post.ID > u.highestPostID {
-							u.highestPostID = post.ID
-						}
-
-						IDMutex.Unlock()
-					} else {
-						IDMutex.RUnlock()
-					}
-
 					if !cfg.forceCheck && post.ID < u.lastPostID {
 						once.Do(closeDone)
 						break
 					}
 
-					files := parseDataForFiles(post)
-
-					if len(files) == 0 {
-						continue
-					}
-
-					for _, f := range files {
-
-						pathname := path.Join(cfg.downloadDirectory, u.name, f.Filename)
-
-						// If there is a file that exists, we skip adding it and move on to the next one.
-						// Or, if update mode is enabled, then we can simply stop searching.
-						_, err := os.Stat(pathname)
-						if err == nil {
-							atomic.AddUint64(&alreadyExists, 1)
-							continue
-						}
-
-						f.User = u.name
-						f.UnixTimestamp = post.UnixTimestamp
-
-						atomic.AddInt64(&pBar.Total, 1)
-
-						showProgress()
-
-						atomic.AddUint64(&totalFound, 1)
-						fileChannel <- f
-					} // Done adding URLs from a single post
+					u.Queue(post)
 
 				} // Done searching all posts on a page
 
@@ -279,5 +231,5 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 		} // loop that searches blog, page by page
 
 	}() // Function that asynchronously adds all downloadables from a blog to a queue
-	return fileChannel
+	return u.fileChannel
 }
