@@ -19,7 +19,10 @@ import (
 
 // VERSION is the current version of the program. It is used for
 // checking if blogs need to be force-updated.
-const VERSION string = "1.4.0"
+//
+// This can be changed during the build phase like so:
+//     go build -ldflags "-X main.VERSION=1.4.1"
+var VERSION = "1.4.0"
 
 var (
 	totalDownloaded, totalFound uint64
