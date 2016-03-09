@@ -6,6 +6,7 @@ import (
 )
 
 func TestShouldFinishScraping(t *testing.T) {
+	t.Parallel()
 
 	makeChans := func() (chan time.Time, chan struct{}) {
 		l := make(chan time.Time, 1)
@@ -80,6 +81,70 @@ func TestShouldFinishScraping(t *testing.T) {
 		if result != test.result {
 			t.Errorf("#%d: shouldFinishScraping(%s)=%t; want %t",
 				i, test.name, result, test.result)
+		}
+	}
+}
+
+func TestParsePhotoPost(t *testing.T) {
+	t.Parallel()
+	t.Skip("Test not implemented")
+}
+
+func TestParseAnswerPost(t *testing.T) {
+	t.Parallel()
+	t.Skip("Test not implemented")
+}
+
+func TestParseRegularPost(t *testing.T) {
+	t.Parallel()
+	t.Skip("Test not implemented")
+}
+
+func TestParseVideoPost(t *testing.T) {
+	t.Parallel()
+	t.Skip("Test not implemented")
+}
+
+func TestParseAudioPost(t *testing.T) {
+	t.Parallel()
+	t.Skip("Feature not implemented")
+}
+
+// TestParseData tests parseDataForFiles. Aside from the other "Parse"
+// tests above, it also checks if there is an invalid post type.
+func TestParseData(t *testing.T) {
+	t.Parallel()
+	t.Skip("Test not implemented")
+}
+
+func TestMakeTumblrURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		u      *User
+		page   int
+		result string
+	}{
+		{
+			&User{name: "InitialUser"},
+			1, "http://InitialUser.tumblr.com/api/read/json?num=50&start=0",
+		}, {
+			&User{name: "OtherPageUser"},
+			2, "http://OtherPageUser.tumblr.com/api/read/json?num=50&start=50",
+		}, {
+			&User{name: "TaggedInitialUser", tag: "test"},
+			1, "http://TaggedInitialUser.tumblr.com/api/read/json?num=50&start=0&tagged=test",
+		}, {
+			&User{name: "TaggedOtherPageUser", tag: "test"},
+			2, "http://TaggedOtherPageUser.tumblr.com/api/read/json?num=50&start=50&tagged=test",
+		},
+	}
+
+	for i, test := range tests {
+		result := makeTumblrURL(test.u, test.page).String()
+
+		if result != test.result {
+			t.Errorf("#%d: makeTumblrURL(%s)=%s; want %s",
+				i, test.u.name, result, test.result)
 		}
 	}
 }
