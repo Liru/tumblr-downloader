@@ -9,12 +9,20 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sync"
 	"sync/atomic"
 
 	"github.com/cheggaaa/pb"
 )
 
 var userVerificationRegex = regexp.MustCompile(`[A-Za-z0-9]*`)
+
+type UserAction int
+
+const (
+	Scraping UserAction = iota
+	Downloading
+)
 
 // User represents a tumblr user blog. It stores details that help
 // to download files efficiently.
@@ -23,6 +31,7 @@ type User struct {
 	lastPostID    int64
 	highestPostID int64
 	progressBar   *pb.ProgressBar
+	status        UserAction
 
 	filesFound     int
 	filesProcessed int
@@ -32,6 +41,8 @@ type User struct {
 
 	idProcessChan   chan int64
 	fileProcessChan chan int
+
+	scrapeWg, downloadWg sync.WaitGroup
 }
 
 func newUser(name string) (*User, error) {
@@ -74,6 +85,8 @@ func (u *User) StartHelper() {
 				if id > u.highestPostID {
 					u.highestPostID = id
 				}
+			case f := <-u.fileProcessChan:
+				u.filesFound += f
 			case <-u.done:
 				break
 			}
@@ -133,4 +146,11 @@ func (u *User) incrementFilesFound(i int) {
 	go func() {
 		u.fileProcessChan <- i
 	}()
+}
+
+func (u *User) finishScraping(i int) {
+	fmt.Println("Done scraping for", u.name, "(", i, "pages )")
+	u.scrapeWg.Wait()
+	u.status = Downloading
+	close(u.fileChannel)
 }

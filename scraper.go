@@ -156,7 +156,6 @@ func shouldFinishScraping(lim <-chan time.Time, done <-chan struct{}) bool {
 }
 
 func scrape(u *User, limiter <-chan time.Time) <-chan File {
-	var wg sync.WaitGroup
 
 	var once sync.Once
 	u.fileChannel = make(chan File, 10000)
@@ -171,9 +170,7 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 		// Go evaluates params at defer instead of at execution.
 		// That, and it beats writing `defer` multiple times.
 		defer func() {
-			fmt.Println("Done scraping for", u.name, "(", i-1, "pages )")
-			wg.Wait()
-			close(u.fileChannel)
+			u.finishScraping(i)
 		}()
 
 		for i = 1; ; i++ {
@@ -210,10 +207,10 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 				break
 			}
 
-			wg.Add(1)
+			u.scrapeWg.Add(1)
 
 			go func() {
-				defer wg.Done()
+				defer u.scrapeWg.Done()
 
 				for _, post := range blog.Posts {
 
