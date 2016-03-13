@@ -114,7 +114,7 @@ func (u *User) Queue(p Post) {
 		// Or, if update mode is enabled, then we can simply stop searching.
 		_, err := os.Stat(pathname)
 		if err == nil {
-			atomic.AddUint64(&alreadyExists, 1)
+			atomic.AddUint64(&gStats.alreadyExists, 1)
 			continue
 		}
 
@@ -125,7 +125,7 @@ func (u *User) Queue(p Post) {
 
 		showProgress()
 
-		atomic.AddUint64(&totalFound, 1)
+		atomic.AddUint64(&gStats.filesFound, 1)
 		u.fileChannel <- f
 	} // Done adding URLs from a single post
 

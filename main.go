@@ -25,11 +25,6 @@ import (
 var VERSION = "1.4.0"
 
 var (
-	totalDownloaded, totalFound uint64
-	alreadyExists, totalErrors  uint64 // Used for atomic operation
-
-	totalSizeDownloaded uint64
-
 	cfg Config
 
 	database *bolt.DB
@@ -210,13 +205,10 @@ func showProgress(s ...interface{}) {
 }
 
 func printSummary() {
-	fmt.Println(totalDownloaded, "/", totalFound, "files downloaded.")
-	fmt.Println(byteSize(totalSizeDownloaded), "downloaded during this session.")
-	if alreadyExists != 0 {
-		fmt.Println(alreadyExists, "previously downloaded.")
-	}
-	if totalErrors != 0 {
-		fmt.Println(totalErrors, "errors while downloading. You may want to rerun the program to attempt to fix that.")
+	fmt.Println(gStats.filesDownloaded, "/", gStats.filesFound, "files downloaded.")
+	fmt.Println(byteSize(gStats.totalSizeDownloaded), "downloaded during this session.")
+	if gStats.alreadyExists != 0 {
+		fmt.Println(gStats.alreadyExists, "previously downloaded.")
 	}
 }
 

@@ -62,8 +62,8 @@ func (f File) Download() {
 	}
 
 	pBar.Increment()
-	atomic.AddUint64(&totalDownloaded, 1)
-	atomic.AddUint64(&totalSizeDownloaded, uint64(len(pic)))
+	atomic.AddUint64(&gStats.filesDownloaded, 1)
+	atomic.AddUint64(&gStats.totalSizeDownloaded, uint64(len(pic)))
 
 }
 
