@@ -17,10 +17,16 @@ import (
 
 var userVerificationRegex = regexp.MustCompile(`[A-Za-z0-9]*`)
 
+// UserAction represents what the user is currently doing.
 type UserAction int
 
+//go:generate stringer -type=UserAction
 const (
+	// Scraping is the default action of a user.
 	Scraping UserAction = iota
+
+	// Downloading represents a user that's done scraping,
+	// but files are still queued up.
 	Downloading
 )
 
@@ -34,7 +40,7 @@ type User struct {
 	status        UserAction
 
 	filesFound     int
-	filesProcessed int
+	filesProcessed int32
 
 	done        chan struct{}
 	fileChannel chan File
@@ -68,11 +74,18 @@ func newUser(name string) (*User, error) {
 		return nil, errors.New("newUser: User not found: " + name)
 	}
 
-	return &User{
-		name:          name,
-		lastPostID:    0,
-		highestPostID: 0,
-	}, nil
+	// We have a valid user.
+
+	u := &User{
+		name:            name,
+		lastPostID:      0,
+		highestPostID:   0,
+		fileProcessChan: make(chan int),
+	}
+
+	u.StartHelper()
+	gStats.nowScraping.Blog[u] = true
+	return u, nil
 }
 
 // StartHelper starts a helper goroutine that keeps track of things
@@ -87,6 +100,7 @@ func (u *User) StartHelper() {
 				}
 			case f := <-u.fileProcessChan:
 				u.filesFound += f
+				gStats.filesFound += uint64(f)
 			case <-u.done:
 				break
 			}
@@ -96,13 +110,13 @@ func (u *User) StartHelper() {
 
 // Queue does stuff.
 func (u *User) Queue(p Post) {
-	var counter int
-
 	files := parseDataForFiles(p)
 
-	if len(files) == 0 {
+	counter := len(files)
+	if counter == 0 {
 		return
 	}
+	u.incrementFilesFound(counter)
 
 	timestamp := p.UnixTimestamp
 
@@ -115,27 +129,27 @@ func (u *User) Queue(p Post) {
 		_, err := os.Stat(pathname)
 		if err == nil {
 			atomic.AddUint64(&gStats.alreadyExists, 1)
+			u.filesProcessed++
 			continue
 		}
 
-		f.User = u.name
+		f.User = u
 		f.UnixTimestamp = timestamp
 
 		atomic.AddInt64(&pBar.Total, 1)
 
 		showProgress()
 
-		atomic.AddUint64(&gStats.filesFound, 1)
 		u.fileChannel <- f
 	} // Done adding URLs from a single post
-
-	u.incrementFilesFound(counter)
 }
 
 // updateHighestPost sends an integer representing a post ID to the
 // user's helper goroutine. It will replace the highest post ID if
 // the value sent is higher than the current highest post. Otherwise,
 // it does nothing.
+//
+// TODO: Use updateHighestPost in appropriate area
 func (u *User) updateHighestPost(i int64) {
 	go func() {
 		u.idProcessChan <- i
@@ -148,9 +162,37 @@ func (u *User) incrementFilesFound(i int) {
 	}()
 }
 
+// finishScraping declares that a user is done scraping, and all that's
+// left to do is download the files that were scraped.
+//
+// finishScraping will wait until all of the scraping goroutines have
+// sent their files to the download queue before closing that queue.
 func (u *User) finishScraping(i int) {
 	fmt.Println("Done scraping for", u.name, "(", i, "pages )")
 	u.scrapeWg.Wait()
 	u.status = Downloading
+
 	close(u.fileChannel)
+}
+
+// Done indicates that the user is done everything it's supposed to do.
+func (u *User) Done() {
+	fmt.Println("Done downloading for", u.name)
+	u.downloadWg.Wait()
+
+	close(u.done) // Stop the helper function
+	gStats.nowScraping.Blog[u] = false
+}
+
+// String implements the Stringer interface.
+func (u *User) String() string {
+	return u.name
+}
+
+// GetStatus prints the status of the user.
+//
+// Used mostly with GlobalStats to show per-user download/scrape status.
+func (u *User) GetStatus() string {
+	return fmt.Sprintln(u.name, "-", u.status,
+		"(", u.filesProcessed, "/", u.filesFound, ")")
 }

@@ -185,7 +185,7 @@ func main() {
 		}
 
 		fmt.Println("Downloading complete.")
-		printSummary()
+		gStats.PrintStatus()
 
 		if !cfg.serverMode {
 			break
@@ -204,14 +204,6 @@ func showProgress(s ...interface{}) {
 		pBar.Update()
 	} else if len(s) > 0 {
 		fmt.Println(s...)
-	}
-}
-
-func printSummary() {
-	fmt.Println(gStats.filesDownloaded, "/", gStats.filesFound, "files downloaded.")
-	fmt.Println(byteSize(gStats.totalSizeDownloaded), "downloaded during this session.")
-	if gStats.alreadyExists != 0 {
-		fmt.Println(gStats.alreadyExists, "previously downloaded.")
 	}
 }
 
@@ -243,10 +235,10 @@ func setupSignalInfo() {
 			s := <-sigChan
 			switch s {
 			case syscall.SIGINT:
-				printSummary()
+				gStats.PrintStatus()
 				os.Exit(1)
 			case syscall.SIGQUIT:
-				printSummary()
+				gStats.PrintStatus()
 			}
 		}
 	}()

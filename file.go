@@ -18,7 +18,7 @@ var (
 
 // A File contains information on a particular tumblr URL, as well as the user where the URL was found.
 type File struct {
-	User          string
+	User          *User
 	URL           string
 	UnixTimestamp int64
 	Filename      string
@@ -49,7 +49,7 @@ func (f File) Download() {
 	if err != nil {
 		log.Fatal("ReadAll:", err)
 	}
-	filename := path.Join(cfg.downloadDirectory, f.User, path.Base(f.Filename))
+	filename := path.Join(cfg.downloadDirectory, f.User.String(), path.Base(f.Filename))
 
 	err = ioutil.WriteFile(filename, pic, 0644)
 	if err != nil {
@@ -62,15 +62,16 @@ func (f File) Download() {
 	}
 
 	pBar.Increment()
+	atomic.AddInt32(&f.User.filesProcessed, 1)
 	atomic.AddUint64(&gStats.filesDownloaded, 1)
-	atomic.AddUint64(&gStats.totalSizeDownloaded, uint64(len(pic)))
+	atomic.AddUint64(&gStats.bytesDownloaded, uint64(len(pic)))
 
 }
 
 // String is the standard method for the Stringer interface.
 func (f File) String() string {
 	date := time.Unix(f.UnixTimestamp, 0)
-	return f.User + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(f.Filename)
+	return f.User.String() + " - " + date.Format("2006-01-02 15:04:05") + " - " + path.Base(f.Filename)
 }
 
 // Gfy houses the Gfycat response.
