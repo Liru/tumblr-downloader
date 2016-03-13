@@ -174,7 +174,10 @@ func main() {
 		}
 
 		downloaderWg.Wait() // Waits for all downloads to complete.
-		pBar.Finish()
+
+		if cfg.useProgressBar {
+			pBar.Finish()
+		}
 
 		updateDatabaseVersion()
 		for _, user := range userBlogs {
