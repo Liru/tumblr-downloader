@@ -77,9 +77,13 @@ func newUser(name string) (*User, error) {
 	// We have a valid user.
 
 	u := &User{
-		name:            name,
-		lastPostID:      0,
-		highestPostID:   0,
+		name:          name,
+		lastPostID:    0,
+		highestPostID: 0,
+
+		done: make(chan struct{}),
+
+		idProcessChan:   make(chan int64),
 		fileProcessChan: make(chan int),
 	}
 
@@ -100,7 +104,7 @@ func (u *User) StartHelper() {
 				}
 			case f := <-u.fileProcessChan:
 				u.filesFound += f
-				gStats.filesFound += uint64(f)
+				atomic.AddUint64(&gStats.filesFound, uint64(f))
 			case <-u.done:
 				break
 			}
@@ -129,7 +133,8 @@ func (u *User) Queue(p Post) {
 		_, err := os.Stat(pathname)
 		if err == nil {
 			atomic.AddUint64(&gStats.alreadyExists, 1)
-			u.filesProcessed++
+			atomic.AddInt32(&u.filesProcessed, 1)
+			u.downloadWg.Done()
 			continue
 		}
 
@@ -157,9 +162,8 @@ func (u *User) updateHighestPost(i int64) {
 }
 
 func (u *User) incrementFilesFound(i int) {
-	go func() {
-		u.fileProcessChan <- i
-	}()
+	u.downloadWg.Add(i)
+	u.fileProcessChan <- i
 }
 
 // finishScraping declares that a user is done scraping, and all that's
@@ -173,15 +177,16 @@ func (u *User) finishScraping(i int) {
 	u.status = Downloading
 
 	close(u.fileChannel)
+	go u.Done()
 }
 
 // Done indicates that the user is done everything it's supposed to do.
 func (u *User) Done() {
-	fmt.Println("Done downloading for", u.name)
 	u.downloadWg.Wait()
-
+	fmt.Println("Done downloading for", u.name)
 	close(u.done) // Stop the helper function
 	gStats.nowScraping.Blog[u] = false
+	updateDatabase(u.name, u.highestPostID)
 }
 
 // String implements the Stringer interface.

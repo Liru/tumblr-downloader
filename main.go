@@ -180,9 +180,6 @@ func main() {
 		}
 
 		updateDatabaseVersion()
-		for _, user := range userBlogs {
-			updateDatabase(user.name, user.highestPostID)
-		}
 
 		fmt.Println("Downloading complete.")
 		gStats.PrintStatus()

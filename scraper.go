@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -193,6 +194,8 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 			contents, _ := ioutil.ReadAll(resp.Body)
 
+			atomic.AddUint64(&gStats.bytesOverhead, uint64(len(contents)))
+
 			// This is returned as pure javascript. We need to filter out the variable and the ending semicolon.
 			contents = TrimJS(contents)
 
@@ -209,21 +212,20 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 			u.scrapeWg.Add(1)
 
-			go func() {
-				defer u.scrapeWg.Done()
+			defer u.scrapeWg.Done()
 
-				for _, post := range blog.Posts {
+			for _, post := range blog.Posts {
 
-					if !cfg.forceCheck && post.ID < u.lastPostID {
-						once.Do(closeDone)
-						break
-					}
+				u.updateHighestPost(post.ID)
 
-					u.Queue(post)
+				if !cfg.forceCheck && post.ID <= u.lastPostID {
+					once.Do(closeDone)
+					return
+				}
 
-				} // Done searching all posts on a page
+				u.Queue(post)
 
-			}() // Function that asynchronously adds all URLs to download queue
+			} // Done searching all posts on a page
 
 		} // loop that searches blog, page by page
 
