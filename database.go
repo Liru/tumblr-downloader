@@ -27,6 +27,7 @@ func setupDatabase(userBlogs []*User) {
 			v := b.Get([]byte(blog.name))
 			if len(v) != 0 {
 				blog.lastPostID, _ = strconv.ParseInt(string(v), 10, 64) // TODO: Messy, probably.
+				blog.updateHighestPost(blog.lastPostID)
 			}
 		}
 
@@ -80,7 +81,7 @@ func updateDatabaseVersion() {
 
 		// Set the value "bar" for the key "foo".
 		if err := b.Put([]byte(`_VERSION_`),
-			[]byte(cfg.Version.String())); err != nil {
+			[]byte(cfg.version.String())); err != nil {
 			return err
 		}
 		return nil
@@ -92,8 +93,8 @@ func updateDatabaseVersion() {
 }
 
 func checkVersion(v semver.Version) {
-	fmt.Println("Current version is", cfg.Version)
-	if v.LT(cfg.Version) {
+	fmt.Println("Current version is", cfg.version)
+	if v.LT(cfg.version) {
 		cfg.forceCheck = true
 		log.Println("Checking entire tumblrblog due to new version.")
 	}

@@ -45,7 +45,7 @@ func init() {
 	flag.BoolVar(&cfg.useProgressBar, "p", false, "Use a progress bar to show download status.")
 	flag.StringVar(&cfg.downloadDirectory, "dir", "", "The `directory` where the files are saved. Default is the directory the program is run from.")
 
-	cfg.Version = semver.MustParse(VERSION)
+	cfg.version = semver.MustParse(VERSION)
 }
 
 func readUserFile() ([]*User, error) {
@@ -118,6 +118,7 @@ func verifyFlags() {
 }
 
 func main() {
+	loadConfig()
 	flag.Parse()
 	verifyFlags()
 
