@@ -165,7 +165,7 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 		done := make(chan struct{})
 		closeDone := func() { close(done) }
-		var i int
+		var i, numPosts int
 
 		// We need to put all of the following into a function because
 		// Go evaluates params at defer instead of at execution.
@@ -181,7 +181,7 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 			tumblrURL := makeTumblrURL(u, i)
 
-			showProgress(u.name, "is on page", i)
+			showProgress(u.name, "is on page", i, "/", (numPosts/50)+1)
 			resp, err := http.Get(tumblrURL.String())
 
 			// XXX: Ugly as shit. This could probably be done better.
@@ -208,9 +208,11 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 				log.Println("Unmarshal:", err)
 			}
 
-			if len(blog.Posts) == 0 {
+			if len(blog.Posts) < 50 {
 				break
 			}
+
+			numPosts = blog.TotalPosts
 
 			u.scrapeWg.Add(1)
 

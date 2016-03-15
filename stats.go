@@ -56,8 +56,9 @@ func (g *GlobalStats) PrintStatus() {
 	}
 
 	fmt.Println(g.filesDownloaded, "/", g.filesFound-g.alreadyExists, "files downloaded.")
-	fmt.Println(byteSize(g.bytesDownloaded), "downloaded during this session.")
 	if g.alreadyExists != 0 {
 		fmt.Println(g.alreadyExists, "previously downloaded.")
 	}
+	fmt.Println(byteSize(g.bytesDownloaded), "of files downloaded during this session.")
+	fmt.Println(byteSize(g.bytesOverhead), "of data downloaded as JSON overhead.")
 }
