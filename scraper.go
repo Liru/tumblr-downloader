@@ -182,18 +182,30 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 			tumblrURL := makeTumblrURL(u, i)
 
 			showProgress(u.name, "is on page", i, "/", (numPosts/50)+1)
-			resp, err := http.Get(tumblrURL.String())
 
-			// XXX: Ugly as shit. This could probably be done better.
-			if err != nil {
-				i--
-				log.Println(u, err)
-				continue
+			var resp *http.Response
+			var err error
+			var contents []byte
+
+			for {
+				resp, err = http.Get(tumblrURL.String())
+
+				// XXX: Ugly as shit. This could probably be done better.
+				if err != nil {
+					log.Println("http.Get:", u, err)
+					continue
+				}
+
+				contents, err = ioutil.ReadAll(resp.Body)
+				if err != nil {
+					log.Println("ReadAll:", u, err,
+						"(", len(contents), "/", resp.ContentLength, ")")
+					continue
+				}
+				err = resp.Body.Close()
+				checkError(err)
+				break
 			}
-			defer resp.Body.Close()
-
-			contents, _ := ioutil.ReadAll(resp.Body)
-
 			atomic.AddUint64(&gStats.bytesOverhead, uint64(len(contents)))
 
 			// This is returned as pure javascript. We need to filter out the variable and the ending semicolon.
