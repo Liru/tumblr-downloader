@@ -11,8 +11,6 @@ import (
 	"regexp"
 	"sync"
 	"sync/atomic"
-
-	"github.com/cheggaaa/pb"
 )
 
 var userVerificationRegex = regexp.MustCompile(`[A-Za-z0-9]*`)
@@ -22,8 +20,9 @@ type UserAction int
 
 //go:generate stringer -type=UserAction
 const (
+	_ UserAction = iota
 	// Scraping is the default action of a user.
-	Scraping UserAction = iota
+	Scraping
 
 	// Downloading represents a user that's done scraping,
 	// but files are still queued up.
@@ -36,10 +35,9 @@ type User struct {
 	name, tag     string
 	lastPostID    int64
 	highestPostID int64
-	progressBar   *pb.ProgressBar
 	status        UserAction
 
-	filesFound     int
+	filesFound     uint64
 	filesProcessed int32
 
 	done        chan struct{}
@@ -83,11 +81,11 @@ func newUser(name string) (*User, error) {
 
 		done: make(chan struct{}),
 
-		idProcessChan:   make(chan int64),
-		fileProcessChan: make(chan int),
+		idProcessChan:   make(chan int64, 10),
+		fileProcessChan: make(chan int, 10),
 	}
 
-	u.StartHelper()
+	// u.StartHelper()
 	gStats.nowScraping.Blog[u] = true
 	return u, nil
 }
@@ -103,7 +101,7 @@ func (u *User) StartHelper() {
 					u.highestPostID = id
 				}
 			case f := <-u.fileProcessChan:
-				u.filesFound += f
+				u.filesFound += uint64(f)
 				atomic.AddUint64(&gStats.filesFound, uint64(f))
 			case <-u.done:
 				break
@@ -156,14 +154,32 @@ func (u *User) Queue(p Post) {
 //
 // TODO: Use updateHighestPost in appropriate area
 func (u *User) updateHighestPost(i int64) {
-	go func() {
-		u.idProcessChan <- i
-	}()
+	// go func() {
+	// 	u.idProcessChan <- i
+	// }()
+
+	idMutex.RLock()
+
+	if i > u.highestPostID {
+		idMutex.RUnlock()
+		idMutex.Lock()
+		if i > u.highestPostID {
+			u.highestPostID = i
+		}
+		idMutex.Unlock()
+		idMutex.RLock()
+	}
+
+	idMutex.RUnlock()
 }
+
+var idMutex sync.RWMutex
 
 func (u *User) incrementFilesFound(i int) {
 	u.downloadWg.Add(i)
-	u.fileProcessChan <- i
+	// u.fileProcessChan <- i
+	atomic.AddUint64(&u.filesFound, uint64(i))
+	atomic.AddUint64(&gStats.filesFound, uint64(i))
 }
 
 // finishScraping declares that a user is done scraping, and all that's
@@ -198,6 +214,6 @@ func (u *User) String() string {
 //
 // Used mostly with GlobalStats to show per-user download/scrape status.
 func (u *User) GetStatus() string {
-	return fmt.Sprintln(u.name, "-", u.status,
-		"(", u.filesProcessed, "/", u.filesFound, ")")
+	return fmt.Sprint(u.name, " - ", u.status,
+		" ( ", u.filesProcessed, "/", u.filesFound, " )")
 }
