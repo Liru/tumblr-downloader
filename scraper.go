@@ -204,6 +204,8 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 			if err != nil {
 				// Goddamnit tumblr, make a consistent API that doesn't
 				// fucking return strings AND booleans in the same field
+
+				log.Println("Unmarshal:", err)
 			}
 
 			if len(blog.Posts) == 0 {
@@ -215,10 +217,14 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 			defer u.scrapeWg.Done()
 
 			for _, post := range blog.Posts {
+				id, err := post.ID.Int64()
+				if err != nil {
+					log.Println(err)
+				}
 
-				u.updateHighestPost(post.ID)
+				u.updateHighestPost(id)
 
-				if !cfg.forceCheck && post.ID <= u.lastPostID {
+				if !cfg.forceCheck && id <= u.lastPostID {
 					once.Do(closeDone)
 					return
 				}
