@@ -43,8 +43,6 @@ func NewGlobalStats() *GlobalStats {
 // It currently prints active (scraping and downloading) blogs.
 // Not sure if it should be changed to also include finished blogs.
 func (g *GlobalStats) PrintStatus() {
-	fmt.Println()
-
 	g.nowScraping.RLock()
 	defer g.nowScraping.RUnlock()
 

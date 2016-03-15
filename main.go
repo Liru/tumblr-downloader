@@ -237,7 +237,6 @@ func setupSignalInfo() {
 				gStats.PrintStatus()
 				os.Exit(1)
 			case syscall.SIGQUIT:
-				database.Close()
 				gStats.PrintStatus()
 			}
 		}
