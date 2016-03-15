@@ -26,8 +26,8 @@ type Post struct {
 	Answer string
 
 	// for videos
-	Video        string `json:"video-player"`
-	VideoCaption string `json:"video-caption"` // For links to outside sites.
+	Video        json.RawMessage `json:"video-player"`
+	VideoCaption string          `json:"video-caption"` // For links to outside sites.
 }
 
 // A TumbleLog is the outer container for Posts. It is necessary for easier JSON deserialization,

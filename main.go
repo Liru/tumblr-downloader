@@ -233,9 +233,11 @@ func setupSignalInfo() {
 			s := <-sigChan
 			switch s {
 			case syscall.SIGINT:
+				database.Close()
 				gStats.PrintStatus()
 				os.Exit(1)
 			case syscall.SIGQUIT:
+				database.Close()
 				gStats.PrintStatus()
 			}
 		}

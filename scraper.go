@@ -85,9 +85,9 @@ func parseRegularPost(post Post) (files []File) {
 
 func parseVideoPost(post Post) (files []File) {
 	if !cfg.ignoreVideos {
-		regextest := videoSearch.FindStringSubmatch(post.Video)
+		regextest := videoSearch.FindStringSubmatch(string(post.Video))
 		if regextest == nil { // hdUrl is false. We have to get the other URL.
-			regextest = altVideoSearch.FindStringSubmatch(post.Video)
+			regextest = altVideoSearch.FindStringSubmatch(string(post.Video))
 		}
 
 		// If it's still nil, it means it's another embedded video type, like Youtube, Vine or Pornhub.
