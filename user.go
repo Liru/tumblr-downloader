@@ -37,6 +37,7 @@ type User struct {
 	highestPostID int64
 	status        UserAction
 
+	sync.RWMutex
 	filesFound     uint64
 	filesProcessed int32
 
@@ -50,7 +51,7 @@ type User struct {
 }
 
 func newUser(name string) (*User, error) {
-
+	fmt.Println(name, "- Verifying...")
 	if !userVerificationRegex.MatchString(name) {
 		return nil, errors.New("newUser: Invalid username format: " + name)
 	}
@@ -78,6 +79,7 @@ func newUser(name string) (*User, error) {
 		name:          name,
 		lastPostID:    0,
 		highestPostID: 0,
+		status:        Scraping,
 
 		done: make(chan struct{}),
 
@@ -158,22 +160,20 @@ func (u *User) updateHighestPost(i int64) {
 	// 	u.idProcessChan <- i
 	// }()
 
-	idMutex.RLock()
+	u.RLock()
 
 	if i > u.highestPostID {
-		idMutex.RUnlock()
-		idMutex.Lock()
+		u.RUnlock()
+		u.Lock()
 		if i > u.highestPostID {
 			u.highestPostID = i
 		}
-		idMutex.Unlock()
-		idMutex.RLock()
+		u.Unlock()
+		u.RLock()
 	}
 
-	idMutex.RUnlock()
+	u.RUnlock()
 }
-
-var idMutex sync.RWMutex
 
 func (u *User) incrementFilesFound(i int) {
 	u.downloadWg.Add(i)

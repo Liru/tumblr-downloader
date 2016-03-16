@@ -220,10 +220,6 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 				log.Println("Unmarshal:", err)
 			}
 
-			if len(blog.Posts) < 50 {
-				break
-			}
-
 			numPosts = blog.TotalPosts
 
 			u.scrapeWg.Add(1)
@@ -246,6 +242,10 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 				u.Queue(post)
 
 			} // Done searching all posts on a page
+
+			if len(blog.Posts) < 50 {
+				break
+			}
 
 		} // loop that searches blog, page by page
 

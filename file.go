@@ -34,21 +34,26 @@ func newFile(URL string) File {
 // Download downloads a file specified in the file's URL.
 func (f File) Download() {
 	var resp *http.Response
+	var err error
+	var pic []byte
+
 	for {
-		resp2, err := http.Get(f.URL)
+		resp, err = http.Get(f.URL)
 		if err != nil {
 			log.Println(err)
-		} else {
-			resp = resp2
-			break
+			continue
 		}
-	}
-	defer resp.Body.Close()
+		defer resp.Body.Close()
 
-	pic, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal("ReadAll:", err)
+		pic, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("ReadAll:", err)
+			continue
+		}
+
+		break
 	}
+
 	filename := path.Join(cfg.downloadDirectory, f.User.String(), path.Base(f.Filename))
 
 	err = ioutil.WriteFile(filename, pic, 0644)
