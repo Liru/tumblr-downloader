@@ -15,6 +15,13 @@ import (
 	"time"
 )
 
+// MaxQueueSize is the maximum size of the channel, per user, that
+// feeds files to downloaders. After that, scraping slows down due
+// to the channel being blocked and the scraper having to wait for
+// files to free up.
+// TODO(Liru): Implement infinite channels or something similar.
+const MaxQueueSize = 10000
+
 var (
 	inlineSearch   = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
 	videoSearch    = regexp.MustCompile(`"hdUrl":"(.*\/tumblr_\w+)"`)                                           // fuck it
@@ -159,7 +166,7 @@ func shouldFinishScraping(lim <-chan time.Time, done <-chan struct{}) bool {
 func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 	var once sync.Once
-	u.fileChannel = make(chan File, 10000)
+	u.fileChannel = make(chan File, MaxQueueSize)
 
 	go func() {
 
