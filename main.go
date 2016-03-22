@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/boltdb/bolt"
 	"github.com/cheggaaa/pb"
 )
 
@@ -25,25 +24,14 @@ import (
 var VERSION = "1.4.0"
 
 var (
-	cfg Config
-
-	database *bolt.DB
-	pBar     = pb.New(0)
+	pBar = pb.New(0)
 )
 
 func init() {
-	flag.IntVar(&cfg.numDownloaders, "d", 10, "Number of downloaders to run at once.")
-	flag.IntVar(&cfg.requestRate, "r", 4, "Maximum number of requests per second to make.")
-	flag.BoolVar(&cfg.updateMode, "u", false, "Update mode. DEPRECATED: Update mode is now the default mode.")
-	flag.BoolVar(&cfg.forceCheck, "f", false, "Bypasses update mode and rechecks all blog pages")
-	flag.BoolVar(&cfg.serverMode, "server", false, "Reruns the downloader regularly after a short pause.")
-	flag.DurationVar(&cfg.serverSleep, "sleep", time.Hour, "Amount of time between download sessions. Used only if server mode is enabled.")
-
 	flag.BoolVar(&cfg.ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
 	flag.BoolVar(&cfg.ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
 	flag.BoolVar(&cfg.ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
 	flag.BoolVar(&cfg.useProgressBar, "p", false, "Use a progress bar to show download status.")
-	flag.StringVar(&cfg.downloadDirectory, "dir", "", "The `directory` where the files are saved. Default is the directory the program is run from.")
 
 	cfg.version = semver.MustParse(VERSION)
 }

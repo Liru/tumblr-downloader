@@ -1,0 +1,16 @@
+
+# Number of downloaders to run at once.
+num_downloaders = 10
+
+# Maximum number of requests per second to make.
+rate = 4
+
+# Reruns the downloader regularly after a short pause.
+server_mode = false
+
+# Amount of time between download sessions. Used only if server mode is enabled.
+sleep_time = "60m"
+
+# The directory where the files are saved.
+# Default is the directory the program is run from.
+directory = ""

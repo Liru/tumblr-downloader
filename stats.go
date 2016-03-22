@@ -46,12 +46,14 @@ func (g *GlobalStats) PrintStatus() {
 	g.nowScraping.RLock()
 	defer g.nowScraping.RUnlock()
 
+	fmt.Println()
 	// XXX: Optimize this if necessary.
 	for k, v := range g.nowScraping.Blog {
 		if v {
 			fmt.Println(k.GetStatus())
 		}
 	}
+	fmt.Println()
 
 	fmt.Println(g.filesDownloaded, "/", g.filesFound-g.alreadyExists, "files downloaded.")
 	if g.alreadyExists != 0 {

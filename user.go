@@ -39,7 +39,7 @@ type User struct {
 
 	sync.RWMutex
 	filesFound     uint64
-	filesProcessed int32
+	filesProcessed uint64
 
 	done        chan struct{}
 	fileChannel chan File
@@ -133,7 +133,7 @@ func (u *User) Queue(p Post) {
 		_, err := os.Stat(pathname)
 		if err == nil {
 			atomic.AddUint64(&gStats.alreadyExists, 1)
-			atomic.AddInt32(&u.filesProcessed, 1)
+			atomic.AddUint64(&u.filesProcessed, 1)
 			u.downloadWg.Done()
 			continue
 		}
