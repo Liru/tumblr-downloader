@@ -1,6 +1,9 @@
-# tumblr-downloader [![Go Report Card](https://goreportcard.com/badge/github.com/liru/tumblr-downloader)](https://goreportcard.com/report/github.com/liru/tumblr-downloader)
+# tumblr-downloader 
 
 A tumblr scraper, designed to download all the images from the blogs that you want.
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/liru/tumblr-downloader)](https://goreportcard.com/report/github.com/liru/tumblr-downloader)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/liru/tumblr-downloader/master/LICENSE)
 
 ##Features
 
@@ -9,6 +12,7 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 * **Complete downloading** -- Will scan the entire blog for downloadables, not just the first X pages.
 * **Rate limiting**
 * **Concurrency** -- download from multiple blogs at the same time
+* **GfyCat support** -- download linked WebM and MP4 files from GfyCat 
 
 ## Download
 
