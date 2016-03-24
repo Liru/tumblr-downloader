@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -31,13 +30,9 @@ type Config struct {
 }
 
 func loadConfig() {
-	var md toml.MetaData
 	var err error
-	if md, err = toml.DecodeFile("config.toml", &cfg); err != nil {
+	if _, err = toml.DecodeFile("config.toml", &cfg); err != nil {
 		// TODO: Do something if config.toml isn't detected.
-		fmt.Println(md.Keys)
 		log.Fatal(err)
 	}
-
-	fmt.Println(md)
 }

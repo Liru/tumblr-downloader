@@ -48,7 +48,7 @@ func TrimJS(c []byte) []byte {
 
 func parsePhotoPost(post Post) (files []File) {
 	var id string
-	if !cfg.ignorePhotos {
+	if !cfg.IgnorePhotos {
 		if len(post.Photos) == 0 {
 			f := newFile(post.PhotoURL)
 			files = append(files, f)
@@ -62,7 +62,7 @@ func parsePhotoPost(post Post) (files []File) {
 		}
 	}
 
-	if !cfg.ignoreVideos {
+	if !cfg.IgnoreVideos {
 		var slug string
 		if len(id) > 26 {
 			slug = id[:26]
@@ -73,7 +73,7 @@ func parsePhotoPost(post Post) (files []File) {
 }
 
 func parseAnswerPost(post Post) (files []File) {
-	if !cfg.ignorePhotos {
+	if !cfg.IgnorePhotos {
 		for _, f := range inlineSearch.FindAllString(post.Answer, -1) {
 			files = append(files, newFile(f))
 		}
@@ -82,7 +82,7 @@ func parseAnswerPost(post Post) (files []File) {
 }
 
 func parseRegularPost(post Post) (files []File) {
-	if !cfg.ignorePhotos {
+	if !cfg.IgnorePhotos {
 		for _, f := range inlineSearch.FindAllString(post.RegularBody, -1) {
 			files = append(files, newFile(f))
 		}
@@ -91,7 +91,7 @@ func parseRegularPost(post Post) (files []File) {
 }
 
 func parseVideoPost(post Post) (files []File) {
-	if !cfg.ignoreVideos {
+	if !cfg.IgnoreVideos {
 		regextest := videoSearch.FindStringSubmatch(string(post.Video))
 		if regextest == nil { // hdUrl is false. We have to get the other URL.
 			regextest = altVideoSearch.FindStringSubmatch(string(post.Video))
@@ -241,7 +241,7 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 				u.updateHighestPost(id)
 
-				if !cfg.forceCheck && id <= u.lastPostID {
+				if !cfg.ForceCheck && id <= u.lastPostID {
 					once.Do(closeDone)
 					return
 				}

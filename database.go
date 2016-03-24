@@ -97,7 +97,7 @@ func updateDatabaseVersion() {
 func checkVersion(v semver.Version) {
 	fmt.Println("Current version is", cfg.version)
 	if v.LT(cfg.version) {
-		cfg.forceCheck = true
+		cfg.ForceCheck = true
 		log.Println("Checking entire tumblrblog due to new version.")
 	}
 }

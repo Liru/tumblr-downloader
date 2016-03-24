@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,10 +29,10 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&cfg.ignorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
-	flag.BoolVar(&cfg.ignoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
-	flag.BoolVar(&cfg.ignoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
-	flag.BoolVar(&cfg.useProgressBar, "p", false, "Use a progress bar to show download status.")
+	flag.BoolVar(&cfg.IgnorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
+	flag.BoolVar(&cfg.IgnoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
+	flag.BoolVar(&cfg.IgnoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
+	flag.BoolVar(&cfg.UseProgressBar, "p", false, "Use a progress bar to show download status.")
 
 	cfg.version = semver.MustParse(VERSION)
 }
@@ -95,13 +96,13 @@ func getUsersToDownload() []*User {
 }
 
 func verifyFlags() {
-	if cfg.updateMode {
+	if cfg.UpdateMode {
 		log.Println("NOTE: Update mode is now the default mode. The -u flag is not needed and may cause problems in future versions.")
 	}
 
-	if cfg.numDownloaders < 1 {
+	if cfg.NumDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
-		cfg.numDownloaders = 10
+		cfg.NumDownloaders = 10
 	}
 }
 
@@ -121,8 +122,8 @@ func main() {
 
 	for {
 
-		limiter := make(chan time.Time, 10*cfg.requestRate)
-		ticker := time.NewTicker(time.Second / time.Duration(cfg.requestRate))
+		limiter := make(chan time.Time, 10*cfg.RequestRate)
+		ticker := time.NewTicker(time.Second / time.Duration(cfg.RequestRate))
 
 		go func() {
 			for t := range ticker.C {
@@ -146,16 +147,16 @@ func main() {
 
 		// Set up progress bars.
 
-		if cfg.useProgressBar {
+		if cfg.UseProgressBar {
 			pBar.Start()
 		}
 
 		// Set up downloaders.
 
 		var downloaderWg sync.WaitGroup
-		downloaderWg.Add(cfg.numDownloaders)
+		downloaderWg.Add(cfg.NumDownloaders)
 
-		for i := 0; i < cfg.numDownloaders; i++ {
+		for i := 0; i < cfg.NumDownloaders; i++ {
 			go func(j int) {
 				downloader(j, limiter, mergedFiles) // mergedFiles will close when scrapers are all done
 				downloaderWg.Done()
@@ -164,7 +165,7 @@ func main() {
 
 		downloaderWg.Wait() // Waits for all downloads to complete.
 
-		if cfg.useProgressBar {
+		if cfg.UseProgressBar {
 			pBar.Finish()
 		}
 
@@ -173,20 +174,20 @@ func main() {
 		fmt.Println("Downloading complete.")
 		gStats.PrintStatus()
 
-		if !cfg.serverMode {
+		if !cfg.ServerMode {
 			break
 		}
 
-		fmt.Println("Sleeping for", cfg.serverSleep)
-		time.Sleep(cfg.serverSleep)
-		cfg.updateMode = true
-		cfg.forceCheck = false
+		fmt.Println("Sleeping for", cfg.ServerSleep)
+		time.Sleep(cfg.ServerSleep)
+		cfg.UpdateMode = true
+		cfg.ForceCheck = false
 		ticker.Stop()
 	}
 }
 
 func showProgress(s ...interface{}) {
-	if cfg.useProgressBar {
+	if cfg.UseProgressBar {
 		pBar.Update()
 	} else if len(s) > 0 {
 		fmt.Println(s...)

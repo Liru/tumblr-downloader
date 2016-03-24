@@ -126,7 +126,7 @@ func (u *User) Queue(p Post) {
 
 	for _, f := range files {
 
-		pathname := path.Join(cfg.downloadDirectory, u.name, f.Filename)
+		pathname := path.Join(cfg.DownloadDirectory, u.name, f.Filename)
 
 		// If there is a file that exists, we skip adding it and move on to the next one.
 		// Or, if update mode is enabled, then we can simply stop searching.
@@ -216,7 +216,7 @@ func (u *User) String() string {
 func (u *User) GetStatus() string {
 	isLimited := ""
 	if u.filesFound-u.filesProcessed > MaxQueueSize {
-		isLimited = "[ LIMITED ]"
+		isLimited = " [ LIMITED ]"
 	}
 
 	return fmt.Sprint(u.name, " - ", u.status,
