@@ -12,11 +12,14 @@ type GlobalStats struct {
 	filesDownloaded uint64
 	filesFound      uint64
 	alreadyExists   uint64
+	hardlinked      uint64
 
 	// bytesDownloaded only counts bytes from files.
 	bytesDownloaded uint64
 	// bytesOverhead counts bytes from the json scraping.
 	bytesOverhead uint64
+	// bytesSaved indicated space saved due to hardlinking instead of downloading.
+	bytesSaved uint64
 
 	// NowScraping is used to show which blogs are being scraped.
 	nowScraping Tracker
@@ -59,6 +62,10 @@ func (g *GlobalStats) PrintStatus() {
 	if g.alreadyExists != 0 {
 		fmt.Println(g.alreadyExists, "previously downloaded.")
 	}
+	if g.hardlinked != 0 {
+		fmt.Println(g.hardlinked, "new hardlinks.")
+	}
 	fmt.Println(byteSize(g.bytesDownloaded), "of files downloaded during this session.")
 	fmt.Println(byteSize(g.bytesOverhead), "of data downloaded as JSON overhead.")
+	fmt.Println(byteSize(g.bytesSaved), "of bandwidth saved due to hardlinking.")
 }

@@ -111,13 +111,21 @@ func main() {
 	flag.Parse()
 	verifyFlags()
 
+	walkblock := make(chan struct{})
+	go func() {
+		fmt.Println("Scanning directory")
+		filepath.Walk(cfg.DownloadDirectory, DirectoryScanner)
+		fmt.Println("Done scanning.")
+		close(walkblock)
+	}()
+
 	userBlogs := getUsersToDownload()
 	setupDatabase(userBlogs)
 	defer database.Close()
 
 	// Here, we're done parsing flags.
 	setupSignalInfo()
-
+	<-walkblock
 	fileChannels := make([]<-chan File, len(userBlogs)) // FIXME: Seems dirty.
 
 	for {

@@ -33,6 +33,7 @@ func newFile(URL string) File {
 
 // Download downloads a file specified in the file's URL.
 func (f File) Download() {
+	filepath := path.Join(cfg.DownloadDirectory, f.User.String(), path.Base(f.Filename))
 	var resp *http.Response
 	var err error
 	var pic []byte
@@ -54,17 +55,17 @@ func (f File) Download() {
 		break
 	}
 
-	filename := path.Join(cfg.downloadDirectory, f.User.String(), path.Base(f.Filename))
-
-	err = ioutil.WriteFile(filename, pic, 0644)
+	err = ioutil.WriteFile(filepath, pic, 0644)
 	if err != nil {
 		log.Fatal("WriteFile:", err)
 	}
 
-	err = os.Chtimes(filename, time.Now(), time.Unix(f.UnixTimestamp, 0))
+	err = os.Chtimes(filepath, time.Now(), time.Unix(f.UnixTimestamp, 0))
 	if err != nil {
 		log.Println(err)
 	}
+
+	FileTracker.Signal(f.Filename)
 
 	pBar.Increment()
 	f.User.downloadWg.Done()

@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 )
 
-var userVerificationRegex = regexp.MustCompile(`[A-Za-z0-9]*`)
+var userVerificationRegex = regexp.MustCompile(`[A-Za-z0-9]+`)
 
 // UserAction represents what the user is currently doing.
 type UserAction int
@@ -51,7 +51,7 @@ type User struct {
 }
 
 func newUser(name string) (*User, error) {
-	fmt.Println(name, "- Verifying...")
+	// fmt.Println(name, "- Verifying...")
 	if !userVerificationRegex.MatchString(name) {
 		return nil, errors.New("newUser: Invalid username format: " + name)
 	}
@@ -125,27 +125,7 @@ func (u *User) Queue(p Post) {
 	timestamp := p.UnixTimestamp
 
 	for _, f := range files {
-
-		pathname := path.Join(cfg.DownloadDirectory, u.name, f.Filename)
-
-		// If there is a file that exists, we skip adding it and move on to the next one.
-		// Or, if update mode is enabled, then we can simply stop searching.
-		_, err := os.Stat(pathname)
-		if err == nil {
-			atomic.AddUint64(&gStats.alreadyExists, 1)
-			atomic.AddUint64(&u.filesProcessed, 1)
-			u.downloadWg.Done()
-			continue
-		}
-
-		f.User = u
-		f.UnixTimestamp = timestamp
-
-		atomic.AddInt64(&pBar.Total, 1)
-
-		showProgress()
-
-		u.fileChannel <- f
+		u.ProcessFile(f, timestamp)
 	} // Done adding URLs from a single post
 }
 
@@ -221,4 +201,45 @@ func (u *User) GetStatus() string {
 
 	return fmt.Sprint(u.name, " - ", u.status,
 		" ( ", u.filesProcessed, "/", u.filesFound, " )", isLimited)
+}
+
+func (u *User) ProcessFile(f File, timestamp int64) {
+	pathname := path.Join(cfg.DownloadDirectory, u.name, f.Filename)
+
+	// If there is a file that exists, we skip adding it and move on to the next one.
+	// Or, if update mode is enabled, then we can simply stop searching.
+	_, err := os.Stat(pathname)
+	if err == nil {
+		atomic.AddUint64(&gStats.alreadyExists, 1)
+		atomic.AddUint64(&u.filesProcessed, 1)
+		u.downloadWg.Done()
+		return
+	}
+	if FileTracker.Add(f.Filename, pathname) {
+		go func(oldfile, newfile string) {
+			// Wait until the file is downloaded.
+
+			// fmt.Println(f.User, "Waiting for hardlink")
+			FileTracker.WaitForDownload(oldfile)
+			// fmt.Println(f.User, "Hardlinking")
+
+			FileTracker.Link(oldfile, newfile)
+			u.downloadWg.Done()
+
+			atomic.AddUint64(&u.filesProcessed, 1)
+			atomic.AddUint64(&gStats.hardlinked, 1)
+			atomic.AddUint64(&gStats.bytesSaved, uint64(FileTracker.m[oldfile].FileInfo().Size()))
+		}(f.Filename, pathname)
+		return
+	}
+
+	f.User = u
+	f.UnixTimestamp = timestamp
+
+	atomic.AddInt64(&pBar.Total, 1)
+
+	showProgress()
+
+	u.fileChannel <- f
+
 }
