@@ -3,7 +3,9 @@
 A tumblr scraper, designed to download all the images from the blogs that you want.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/liru/tumblr-downloader)](https://goreportcard.com/report/github.com/liru/tumblr-downloader)
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/liru/tumblr-downloader/master/LICENSE)
+[![MIT licensed](https://img.shields.io/github/license/liru/tumblr-downloader.svg)](https://raw.githubusercontent.com/liru/tumblr-downloader/master/LICENSE)
+[![Version](https://img.shields.io/github/release/liru/tumblr-downloader.svg)
+[![Downloads](https://img.shields.io/github/downloads/liru/tumblr-downloader/total.svg)](https://github.com/liru/tumblr-downloader/releases)
 
 ##Features
 
@@ -17,8 +19,6 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 ## Download
 
 Latest releases can be found [here](https://github.com/Liru/tumblr-downloader/releases/latest) for Windows, Mac, and Linux.
-
-If you are willing to help improve this program, please download the `debug` version. It takes a bit more RAM while downloading, but its output will help track down bugs. Other than that, it has no change, and will still download everything that the normal version does, and at the same speed.
 
 ## Usage
 ###Simple
@@ -40,22 +40,11 @@ chickenpictures funny faces
 
 If your tag has spaces in it, just type the tag normally after the blog name. For instance, in the above example, `chickenpictures` will download anything tagged with `funny faces`. (Note that it will NOT download `funny` and `faces` separately like this.)
 
-### Command line
-
-Run `tumblr-downloader` as such, appending the usernames you want to download after the executable:
-
-`$ ./tumblr-downloader nature-pics sunsets chickenpictures`
-
 #### Command line options
 
-* `-d` - The maximum number of images to download at the same time. Default is 3.
-* `-r` - The maximum number of requests per second to make.
 * `-f` - Force check -- the downloader will recheck old tumblr posts to see if it missed anything.
-* `-dir` - The directory to save files in. By default, tumblr-downloader saves the files in the same directory it's run from, making a new directory for each blog.
 * `-ignore-audio`, `-ignore-videos`, `-ignore-photos` - Skips downloading the respective types of files.
 * `-p` - Enable progress bar to track progress instead of printing files being downloaded.
-* `-server` - Runs as a server, automatically restarting the download process after finishing.
-* `-sleep` - Only works if `-server` is enabled. The amount of time to wait between download sessions.
 
 ## Suggestions
 
