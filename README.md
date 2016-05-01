@@ -4,7 +4,7 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/liru/tumblr-downloader)](https://goreportcard.com/report/github.com/liru/tumblr-downloader)
 [![MIT licensed](https://img.shields.io/github/license/liru/tumblr-downloader.svg)](https://raw.githubusercontent.com/liru/tumblr-downloader/master/LICENSE)
-[![Version](https://img.shields.io/github/release/liru/tumblr-downloader.svg)
+![Version](https://img.shields.io/github/release/liru/tumblr-downloader.svg)
 [![Downloads](https://img.shields.io/github/downloads/liru/tumblr-downloader/total.svg)](https://github.com/liru/tumblr-downloader/releases)
 
 ##Features
