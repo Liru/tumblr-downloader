@@ -9,7 +9,7 @@ rate = 4
 server_mode = false
 
 # Amount of time between download sessions. Used only if server mode is enabled.
-sleep_time = "60m"
+sleep_time = 60
 
 # The directory where the files are saved.
 # Default is the directory the program is run from.

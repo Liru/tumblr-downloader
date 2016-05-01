@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 )
 
-var userVerificationRegex = regexp.MustCompile(`[A-Za-z0-9]+`)
+var userVerificationRegex = regexp.MustCompile(`^[A-Za-z0-9\-]+$`)
 
 // UserAction represents what the user is currently doing.
 type UserAction int
