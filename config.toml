@@ -13,4 +13,4 @@ sleep_time = 60
 
 # The directory where the files are saved.
 # Default is the directory the program is run from.
-directory = ""
+directory = "downloads"

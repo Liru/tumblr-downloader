@@ -35,4 +35,7 @@ func loadConfig() {
 		// TODO: Do something if config.toml isn't detected.
 		log.Fatal(err)
 	}
+	if cfg.DownloadDirectory == "" {
+		cfg.DownloadDirectory = "."
+	}
 }

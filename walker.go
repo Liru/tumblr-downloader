@@ -97,6 +97,10 @@ func (t *tracker) Signal(file string) {
 // download. This lets us know which files are already downloaded, and
 // which ones can be hardlinked.
 func DirectoryScanner(path string, f os.FileInfo, err error) error {
+	if f == nil { // Only exists if the directory doesn't exist beforehand.
+		return err
+	}
+
 	if f.IsDir() {
 		return err
 	}
