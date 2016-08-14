@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -92,6 +93,7 @@ func parseRegularPost(post Post) (files []File) {
 
 func parseVideoPost(post Post) (files []File) {
 	if !cfg.IgnoreVideos {
+		post.Video = bytes.Replace(post.Video, []byte("\\"), []byte(""), -1)
 		regextest := videoSearch.FindStringSubmatch(string(post.Video))
 		if regextest == nil { // hdUrl is false. We have to get the other URL.
 			regextest = altVideoSearch.FindStringSubmatch(string(post.Video))
