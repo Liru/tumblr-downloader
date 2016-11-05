@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -106,6 +106,67 @@ func verifyFlags() {
 	}
 }
 
+func GetAllCurrentFiles() {
+	os.MkdirAll(cfg.DownloadDirectory, 0755)
+	dirs, err := ioutil.ReadDir(cfg.DownloadDirectory)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO: Make GetAllCurrentFiles a LOT more stable. A lot could go wrong, but meh.
+
+	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
+
+		dir, err := os.Open(cfg.DownloadDirectory + string(os.PathSeparator) + d.Name())
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		// fmt.Println(dir.Name())
+		files, err := dir.Readdirnames(0)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, f := range files {
+			if info, ok := FileTracker.m[f]; ok {
+				// File exists.
+
+				p := dir.Name() + string(os.PathSeparator) + f
+
+				checkFile, err := os.Stat(p)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if !os.SameFile(info.FileInfo(), checkFile) {
+					os.Remove(p)
+					err := os.Link(info.Path, p)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+			} else {
+				// New file.
+				closedChannel := make(chan struct{})
+				close(closedChannel)
+
+				FileTracker.m[f] = FileStatus{
+					Name:     f,
+					Path:     dir.Name() + string(os.PathSeparator) + f,
+					Priority: 0, // TODO(Liru): Add priority to file list when it is implemented
+					Exists:   closedChannel,
+				}
+
+			}
+		}
+
+	}
+}
+
 func main() {
 	loadConfig()
 	flag.Parse()
@@ -114,7 +175,8 @@ func main() {
 	walkblock := make(chan struct{})
 	go func() {
 		fmt.Println("Scanning directory")
-		filepath.Walk(cfg.DownloadDirectory, DirectoryScanner)
+		//filepath.Walk(cfg.DownloadDirectory, DirectoryScanner)
+		GetAllCurrentFiles()
 		fmt.Println("Done scanning.")
 		close(walkblock)
 	}()
