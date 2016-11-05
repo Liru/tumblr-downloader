@@ -132,7 +132,7 @@ func parseDataForFiles(post Post) (files []File) {
 
 func makeTumblrURL(u *User, i int) *url.URL {
 
-	base := fmt.Sprintf("http://%s.tumblr.com/api/read/json", u.name)
+	base := fmt.Sprintf("https://%s.tumblr.com/api/read/json", u.name)
 
 	tumblrURL, err := url.Parse(base)
 	checkFatalError(err, "tumblrURL: ")
