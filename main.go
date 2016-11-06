@@ -114,7 +114,6 @@ func GetAllCurrentFiles() {
 	}
 
 	// TODO: Make GetAllCurrentFiles a LOT more stable. A lot could go wrong, but meh.
-
 	for _, d := range dirs {
 		if !d.IsDir() {
 			continue
@@ -125,31 +124,15 @@ func GetAllCurrentFiles() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// fmt.Println(dir.Name())
+		fmt.Println("Scanning", dir.Name())
 		files, err := dir.Readdirnames(0)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		for _, f := range files {
-			if info, ok := FileTracker.m[f]; ok {
-				// File exists.
+			if _, ok := FileTracker.m[f]; !ok {
 
-				p := dir.Name() + string(os.PathSeparator) + f
-
-				checkFile, err := os.Stat(p)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				if !os.SameFile(info.FileInfo(), checkFile) {
-					os.Remove(p)
-					err := os.Link(info.Path, p)
-					if err != nil {
-						log.Fatal(err)
-					}
-				}
-			} else {
 				// New file.
 				closedChannel := make(chan struct{})
 				close(closedChannel)
