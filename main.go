@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -29,12 +28,43 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&cfg.IgnorePhotos, "ignore-photos", false, "Ignore any photos found in the selected tumblrs.")
-	flag.BoolVar(&cfg.IgnoreVideos, "ignore-videos", false, "Ignore any videos found in the selected tumblrs.")
-	flag.BoolVar(&cfg.IgnoreAudio, "ignore-audio", false, "Ignore any audio files found in the selected tumblrs.")
-	flag.BoolVar(&cfg.UseProgressBar, "p", false, "Use a progress bar to show download status.")
+	loadConfig()
+
+	var numDownloaders int
+	if cfg.NumDownloaders == 0 {
+		numDownloaders = 10
+	} else {
+		numDownloaders = cfg.NumDownloaders
+	}
+
+	var requestRate int
+	if cfg.RequestRate == 0 {
+		requestRate = 4
+	} else {
+		requestRate = cfg.RequestRate
+	}
+
+	var downloadDirectory string
+	if len(cfg.DownloadDirectory) == 0 {
+		downloadDirectory = "."
+	} else {
+		downloadDirectory = cfg.DownloadDirectory
+
+	}
+
+	flag.BoolVar(&cfg.IgnorePhotos, "ignore-photos", cfg.IgnorePhotos, "Ignore any photos found in the selected tumblrs.")
+	flag.BoolVar(&cfg.IgnoreVideos, "ignore-videos", cfg.IgnoreVideos, "Ignore any videos found in the selected tumblrs.")
+	flag.BoolVar(&cfg.IgnoreAudio, "ignore-audio", cfg.IgnoreAudio, "Ignore any audio files found in the selected tumblrs.")
+	flag.BoolVar(&cfg.UseProgressBar, "p", cfg.UseProgressBar, "Use a progress bar to show download status.")
+	flag.BoolVar(&cfg.ForceCheck, "force", cfg.ForceCheck, "Force checking an entire blog for new files.")
+
+	flag.IntVar(&cfg.NumDownloaders, "d", numDownloaders, "Number of simultaneous downloads allowed.")
+	flag.IntVar(&cfg.RequestRate, "r", requestRate, "Number of requests per second allowed. Do not exceed 15, as tumblr begins throttling at that point.")
+	flag.StringVar(&cfg.DownloadDirectory, "dir", downloadDirectory, "The directory which will store all downloads.")
 
 	cfg.version = semver.MustParse(VERSION)
+
+	flag.Parse()
 }
 
 func readUserFile() ([]*User, error) {
@@ -96,63 +126,22 @@ func getUsersToDownload() []*User {
 }
 
 func verifyFlags() {
-	if cfg.UpdateMode {
-		log.Println("NOTE: Update mode is now the default mode. The -u flag is not needed and may cause problems in future versions.")
-	}
-
 	if cfg.NumDownloaders < 1 {
 		log.Println("Invalid number of downloaders, setting to default")
 		cfg.NumDownloaders = 10
 	}
-}
 
-func GetAllCurrentFiles() {
-	os.MkdirAll(cfg.DownloadDirectory, 0755)
-	dirs, err := ioutil.ReadDir(cfg.DownloadDirectory)
-	if err != nil {
-		panic(err)
+	if cfg.RequestRate < 1 {
+		log.Println("Invalid request rate, setting to default")
+		cfg.RequestRate = 4
 	}
 
-	// TODO: Make GetAllCurrentFiles a LOT more stable. A lot could go wrong, but meh.
-	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
-		}
-
-		dir, err := os.Open(cfg.DownloadDirectory + string(os.PathSeparator) + d.Name())
-
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Scanning", dir.Name())
-		files, err := dir.Readdirnames(0)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for _, f := range files {
-			if _, ok := FileTracker.m[f]; !ok {
-
-				// New file.
-				closedChannel := make(chan struct{})
-				close(closedChannel)
-
-				FileTracker.m[f] = FileStatus{
-					Name:     f,
-					Path:     dir.Name() + string(os.PathSeparator) + f,
-					Priority: 0, // TODO(Liru): Add priority to file list when it is implemented
-					Exists:   closedChannel,
-				}
-
-			}
-		}
-
+	if cfg.RequestRate > 15 {
+		log.Println("WARNING: Request rate is over 15 per second. Tumblr may throttle/block you from downloading. Continue at your own risk.")
 	}
 }
 
 func main() {
-	loadConfig()
-	flag.Parse()
 	verifyFlags()
 
 	walkblock := make(chan struct{})
@@ -233,7 +222,6 @@ func main() {
 
 		fmt.Println("Sleeping for", cfg.ServerSleep)
 		time.Sleep(cfg.ServerSleep)
-		cfg.UpdateMode = true
 		cfg.ForceCheck = false
 		ticker.Stop()
 	}

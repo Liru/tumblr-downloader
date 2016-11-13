@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -96,6 +97,8 @@ func (t *tracker) Signal(file string) {
 // register each file in the download directory before beginning the
 // download. This lets us know which files are already downloaded, and
 // which ones can be hardlinked.
+//
+// Deprecated; replaced by GetAllCurrentFiles().
 func DirectoryScanner(path string, f os.FileInfo, err error) error {
 	if f == nil { // Only exists if the directory doesn't exist beforehand.
 		return err
@@ -128,6 +131,69 @@ func DirectoryScanner(path string, f os.FileInfo, err error) error {
 
 	}
 	return err
+}
+
+// GetAllCurrentFiles scans the download directory and parses the files inside
+// for possible future linking, if a duplicate is found.
+func GetAllCurrentFiles() {
+	os.MkdirAll(cfg.DownloadDirectory, 0755)
+	dirs, err := ioutil.ReadDir(cfg.DownloadDirectory)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO: Make GetAllCurrentFiles a LOT more stable. A lot could go wrong, but meh.
+
+	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
+
+		dir, err := os.Open(cfg.DownloadDirectory + string(os.PathSeparator) + d.Name())
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		// fmt.Println(dir.Name())
+		files, err := dir.Readdirnames(0)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, f := range files {
+			if info, ok := FileTracker.m[f]; ok {
+				// File exists.
+
+				p := dir.Name() + string(os.PathSeparator) + f
+
+				checkFile, err := os.Stat(p)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if !os.SameFile(info.FileInfo(), checkFile) {
+					os.Remove(p)
+					err := os.Link(info.Path, p)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+			} else {
+				// New file.
+				closedChannel := make(chan struct{})
+				close(closedChannel)
+
+				FileTracker.m[f] = FileStatus{
+					Name:     f,
+					Path:     dir.Name() + string(os.PathSeparator) + f,
+					Priority: 0, // TODO(Liru): Add priority to file list when it is implemented
+					Exists:   closedChannel,
+				}
+
+			}
+		}
+
+	}
 }
 
 func FileInfo(s string) os.FileInfo {

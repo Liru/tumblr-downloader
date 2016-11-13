@@ -15,7 +15,6 @@ var cfg Config
 type Config struct {
 	NumDownloaders    int           `toml:"num_downloaders"`
 	RequestRate       int           `toml:"rate"`
-	UpdateMode        bool          `toml:"update_mode"`
 	ForceCheck        bool          `toml:"force"`
 	ServerMode        bool          `toml:"server_mode"`
 	ServerSleep       time.Duration `toml:"sleep_time"`
