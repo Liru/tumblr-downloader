@@ -159,7 +159,7 @@ func main() {
 
 	// Here, we're done parsing flags.
 	setupSignalInfo()
-	// <-walkblock
+	<-walkblock
 	fileChannels := make([]<-chan File, len(userBlogs)) // FIXME: Seems dirty.
 
 	for {
@@ -193,7 +193,6 @@ func main() {
 			pBar.Start()
 		}
 
-		<-walkblock
 		// Set up downloaders.
 
 		var downloaderWg sync.WaitGroup
