@@ -226,6 +226,7 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 				// Goddamnit tumblr, make a consistent API that doesn't
 				// fucking return strings AND booleans in the same field
 
+				ioutil.WriteFile("json_error.txt", contents, 0644)
 				log.Println("Unmarshal:", err)
 			}
 
