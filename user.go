@@ -195,14 +195,17 @@ func (u *User) String() string {
 // Used mostly with GlobalStats to show per-user download/scrape status.
 func (u *User) GetStatus() string {
 	isLimited := ""
-	if u.filesFound-u.filesProcessed > MaxQueueSize {
+	filesFound := atomic.LoadUint64(&u.filesFound)
+	filesProcessed := atomic.LoadUint64(&u.filesProcessed)
+	if filesFound-filesProcessed > MaxQueueSize {
 		isLimited = " [ LIMITED ]"
 	}
 
 	return fmt.Sprint(u.name, " - ", u.status,
-		" ( ", u.filesProcessed, "/", u.filesFound, " )", isLimited)
+		" ( ", filesProcessed, "/", filesFound, " )", isLimited)
 }
 
+// ProcessFile processes a given file
 func (u *User) ProcessFile(f File, timestamp int64) {
 	pathname := path.Join(cfg.DownloadDirectory, u.name, f.Filename)
 
