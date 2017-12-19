@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 var gStats = NewGlobalStats()
@@ -58,14 +59,22 @@ func (g *GlobalStats) PrintStatus() {
 	}
 	fmt.Println()
 
-	fmt.Println(g.filesDownloaded, "/", g.filesFound-g.alreadyExists, "files downloaded.")
-	if g.alreadyExists != 0 {
-		fmt.Println(g.alreadyExists, "previously downloaded.")
+	filesFound := atomic.LoadUint64(&g.filesFound)
+	alreadyExists := atomic.LoadUint64(&g.alreadyExists)
+	filesDownloaded := atomic.LoadUint64(&g.filesDownloaded)
+	hardlinked := atomic.LoadUint64(&g.hardlinked)
+	bytesDownloaded := atomic.LoadUint64(&g.bytesDownloaded)
+	bytesOverhead := atomic.LoadUint64(&g.bytesOverhead)
+	bytesSaved := atomic.LoadUint64(&g.bytesSaved)
+
+	fmt.Println(filesDownloaded, "/", filesFound-alreadyExists, "files downloaded.")
+	if alreadyExists != 0 {
+		fmt.Println(alreadyExists, "previously downloaded.")
 	}
-	if g.hardlinked != 0 {
-		fmt.Println(g.hardlinked, "new hardlinks.")
+	if hardlinked != 0 {
+		fmt.Println(hardlinked, "new hardlinks.")
 	}
-	fmt.Println(byteSize(g.bytesDownloaded), "of files downloaded during this session.")
-	fmt.Println(byteSize(g.bytesOverhead), "of data downloaded as JSON overhead.")
-	fmt.Println(byteSize(g.bytesSaved), "of bandwidth saved due to hardlinking.")
+	fmt.Println(byteSize(bytesDownloaded), "of files downloaded during this session.")
+	fmt.Println(byteSize(bytesOverhead), "of data downloaded as JSON overhead.")
+	fmt.Println(byteSize(bytesSaved), "of bandwidth saved due to hardlinking.")
 }
