@@ -83,13 +83,18 @@ func (t *tracker) Link(oldfilename, newpath string) {
 }
 
 func (t *tracker) WaitForDownload(name string) {
-	<-t.m[name].Exists
+	t.Lock()
+	ch := t.m[name].Exists
+	t.Unlock()
+	<-ch
 }
 
 // Signal informs the goroutines waiting for a file to finish downloading that
 // the file specified is now present on disk. This allows them to hardlink to
 // it.
 func (t *tracker) Signal(file string) {
+	t.Lock()
+	defer t.Unlock()
 	close(t.m[file].Exists)
 }
 
