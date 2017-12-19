@@ -228,7 +228,12 @@ func (u *User) ProcessFile(f File, timestamp int64) {
 
 			atomic.AddUint64(&u.filesProcessed, 1)
 			atomic.AddUint64(&gStats.hardlinked, 1)
-			atomic.AddUint64(&gStats.bytesSaved, uint64(FileTracker.m[oldfile].FileInfo().Size()))
+			var v uint64
+			FileTracker.Lock()
+			v = uint64(FileTracker.m[oldfile].FileInfo().Size())
+			FileTracker.Unlock()
+
+			atomic.AddUint64(&gStats.bytesSaved, v)
 		}(f.Filename, pathname)
 		return
 	}
