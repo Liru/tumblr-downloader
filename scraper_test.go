@@ -126,16 +126,16 @@ func TestMakeTumblrURL(t *testing.T) {
 	}{
 		{
 			&User{name: "InitialUser"},
-			1, "http://InitialUser.tumblr.com/api/read/json?num=50&start=0",
+			1, "https://InitialUser.tumblr.com/api/read/json?num=50&start=0",
 		}, {
 			&User{name: "OtherPageUser"},
-			2, "http://OtherPageUser.tumblr.com/api/read/json?num=50&start=50",
+			2, "https://OtherPageUser.tumblr.com/api/read/json?num=50&start=50",
 		}, {
 			&User{name: "TaggedInitialUser", tag: "test"},
-			1, "http://TaggedInitialUser.tumblr.com/api/read/json?num=50&start=0&tagged=test",
+			1, "https://TaggedInitialUser.tumblr.com/api/read/json?num=50&start=0&tagged=test",
 		}, {
 			&User{name: "TaggedOtherPageUser", tag: "test"},
-			2, "http://TaggedOtherPageUser.tumblr.com/api/read/json?num=50&start=50&tagged=test",
+			2, "https://TaggedOtherPageUser.tumblr.com/api/read/json?num=50&start=50&tagged=test",
 		},
 	}
 
