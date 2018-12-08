@@ -1,6 +1,9 @@
 #!/bin/bash
 NAME='tumblr-downloader'
 
+echo "Fetching needed packages.."
+go get ./...
+echo "Done! Generating binaries for all operating systems.."
 for arch in amd64 386
 do
 	for os in linux darwin windows
