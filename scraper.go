@@ -25,8 +25,8 @@ const MaxQueueSize = 10000
 
 var (
 	inlineSearch   = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
-	videoSearch    = regexp.MustCompile(`"hdUrl":"(.*\/tumblr_\w+)"`)                                           // fuck it
-	altVideoSearch = regexp.MustCompile(`source src="(.*tumblr_\w+)(?:\/\d+)?" type`)
+	videoSearch    = regexp.MustCompile(`"hdUrl":".*(tumblr_\w+)"`)                                           // fuck it
+	altVideoSearch = regexp.MustCompile(`source src=".*(tumblr_\w+)(?:\/\d+)?" type`)
 	gfycatSearch   = regexp.MustCompile(`href="https?:\/\/(?:www\.)?gfycat\.com\/(\w+)`)
 )
 
@@ -104,7 +104,10 @@ func parseVideoPost(post Post) (files []File) {
 		if regextest == nil {
 			return
 		}
+
+
 		videoURL := strings.Replace(regextest[1], `\`, ``, -1)
+    videoURL = "https://vtt.tumblr.com/" + videoURL;
 
 		// If there are problems with downloading video, the below part may be the cause.
 		// videoURL = strings.Replace(videoURL, `/480`, ``, -1)
