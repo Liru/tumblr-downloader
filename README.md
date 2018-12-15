@@ -7,6 +7,14 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 ![Version](https://img.shields.io/github/release/liru/tumblr-downloader.svg)
 [![Downloads](https://img.shields.io/github/downloads/liru/tumblr-downloader/total.svg)](https://github.com/liru/tumblr-downloader/releases)
 
+## :heavy_exclamation_mark: NOTE 
+
+This downloader is currently mostly inactive in development. It hasn't been maintained much since it was made a long time ago, and as a result, some errors may come about.
+
+Some common problems include being unable to use it in the EU due to Tumblr's GDPR implementation, and crashing when getting GfyCat links.
+
+If you want a downloader to back stuff up, I'd currently recommend [TumblThree](https://www.jzab.de/content/tumblthree) for Windows, or [tumblr-utils](https://github.com/bbolli/tumblr-utils) for Mac/Linux.
+
 ## Features
 
 * **Photo, video, and audio downloading**
