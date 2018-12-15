@@ -7,7 +7,7 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 ![Version](https://img.shields.io/github/release/liru/tumblr-downloader.svg)
 [![Downloads](https://img.shields.io/github/downloads/liru/tumblr-downloader/total.svg)](https://github.com/liru/tumblr-downloader/releases)
 
-##Features
+## Features
 
 * **Photo, video, and audio downloading**
 * **Iterative downloading** -- If you download from a blog, the run it again, only the missing downloadables can be downloaded the second time.
@@ -21,7 +21,7 @@ A tumblr scraper, designed to download all the images from the blogs that you wa
 Latest releases can be found [here](https://github.com/Liru/tumblr-downloader/releases/latest) for Windows, Mac, and Linux.
 
 ## Usage
-###Simple
+### Simple
 Make a text file called `download.txt` with each tumblr blog you want to download on a separate line:
 ```
 nature-pics
