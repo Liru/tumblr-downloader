@@ -9,7 +9,7 @@ do
 	for os in linux darwin windows
 	do
 		echo "Building for $os $arch"
-		env GOOS=$os GOARCH=$arch go build -ldflags "-X main.VERSION=$1"
+		env GOOS=$os GOARCH=$arch go build -ldflags "-X main.VERSION=${1:-1.0.0}"
 		mkdir $NAME-$os-$arch
 		EXECUTABLE="$NAME"
 		if [ "$os" == "windows" ]; then
